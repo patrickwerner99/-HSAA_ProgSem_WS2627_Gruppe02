@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -14,6 +14,21 @@ import { FallbackImageDirective } from '../../shared/fallback-image.directive';
 import { IMAGE_URL_PATTERN, parsePrice, parseStock, priceForInput } from '../../shared/format';
 import { NotifyService } from '../../shared/notify.service';
 import { messageFor, notBlank, priceValidator, stockValidator } from './validators';
+
+/** Gleiche Grenzen wie im Backend (ImageStorage.java). */
+export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Prüft eine ausgewählte Bilddatei schon im Browser, damit der Admin sofort Bescheid weiß. */
+export function imageFileProblem(file: File): string | null {
+  if (!IMAGE_TYPES.includes(file.type)) {
+    return 'Bitte ein Bild im Format PNG, JPG, WebP oder GIF auswählen.';
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return 'Das Bild ist zu groß. Erlaubt sind höchstens 5 MB.';
+  }
+  return null;
+}
 
 export interface ProductFormData {
   /** null = neues Produkt anlegen */
@@ -50,6 +65,11 @@ export class ProductFormDialog {
   protected readonly saving = signal(false);
   protected readonly formError = signal<string | null>(null);
   protected readonly messageFor = messageFor;
+
+  /** Ausgewählte Bilddatei; wird nach dem Speichern des Produkts hochgeladen (D1). */
+  protected readonly file = signal<File | null>(null);
+  protected readonly fileError = signal<string | null>(null);
+  private readonly filePreview = signal<string | null>(null);
 
   protected readonly form = new FormGroup({
     name: new FormControl(this.data.product?.name ?? '', {
@@ -88,6 +108,45 @@ export class ProductFormDialog {
     { initialValue: this.previewUrl(this.form.controls.imageUrl.value) },
   );
 
+  /** Vorschau: neu gewählte Datei vor der eingetragenen Adresse. */
+  protected readonly shownImage = computed(() => this.filePreview() ?? this.preview());
+
+  constructor() {
+    inject(DestroyRef).onDestroy(() => this.revokePreview());
+  }
+
+  protected chooseFile(input: HTMLInputElement): void {
+    const chosen = input.files?.[0] ?? null;
+    input.value = ''; // gleiche Datei nochmal wählen soll auch funktionieren
+    if (!chosen) {
+      return;
+    }
+    const problem = imageFileProblem(chosen);
+    this.fileError.set(problem);
+    if (problem) {
+      return;
+    }
+    this.revokePreview();
+    this.file.set(chosen);
+    this.filePreview.set(URL.createObjectURL(chosen));
+  }
+
+  /** Bild weg: gewählte Datei verwerfen und Adresse leeren → Platzhalter (D3). */
+  protected removeImage(): void {
+    this.revokePreview();
+    this.file.set(null);
+    this.fileError.set(null);
+    this.form.controls.imageUrl.setValue('');
+  }
+
+  private revokePreview(): void {
+    const url = this.filePreview();
+    if (url) {
+      URL.revokeObjectURL(url);
+    }
+    this.filePreview.set(null);
+  }
+
   protected save(): void {
     if (this.form.invalid || this.saving()) {
       this.form.markAllAsTouched();
@@ -114,8 +173,14 @@ export class ProductFormDialog {
 
     request$.subscribe({
       next: (saved) => {
-        this.notify.success('Produkt gespeichert');
-        this.dialogRef.close(saved);
+        const file = this.file();
+        if (file) {
+          // Erst jetzt gibt es eine Produkt-ID, also das Bild danach hochladen.
+          this.uploadAndClose(saved, file);
+        } else {
+          this.notify.success('Produkt gespeichert');
+          this.dialogRef.close(saved);
+        }
       },
       error: (error) => {
         this.saving.set(false);
@@ -131,6 +196,23 @@ export class ProductFormDialog {
             ? 'Bitte prüfe die markierten Felder.'
             : `Speichern fehlgeschlagen. ${userMessage(error)}`,
         );
+      },
+    });
+  }
+
+  private uploadAndClose(saved: Product, file: File): void {
+    this.productService.uploadImage(saved.id, file).subscribe({
+      next: (withImage) => {
+        this.notify.success('Produkt und Bild gespeichert');
+        this.dialogRef.close(withImage);
+      },
+      error: (error) => {
+        // Das Produkt ist gespeichert, nur das Bild nicht. Der Admin kann es erneut versuchen.
+        const [fileError] = fieldErrors(error);
+        this.notify.error(
+          `Produkt gespeichert, aber das Bild nicht: ${fileError?.message ?? userMessage(error)}`,
+        );
+        this.dialogRef.close(saved);
       },
     });
   }

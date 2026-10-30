@@ -1,0 +1,101 @@
+<h1>Warenkorb</h1>
+
+@if (lines().length === 0) {
+  <div class="state-message">
+    <p>Dein Warenkorb ist leer.</p>
+    <a mat-flat-button routerLink="/">Zum Sortiment</a>
+  </div>
+} @else if (loadError(); as message) {
+  <div class="state-message error" role="alert">
+    <p>Der Warenkorb konnte nicht geladen werden.</p>
+    <p class="hint">{{ message }}</p>
+    <button mat-flat-button type="button" (click)="reload()">Erneut versuchen</button>
+  </div>
+} @else if (loading()) {
+  <div class="state-message" aria-live="polite"><mat-spinner diameter="36" /></div>
+} @else {
+  @if (orderError(); as message) {
+    <p class="order-error" role="alert">{{ message }}</p>
+  }
+
+  <ul class="lines">
+    @for (line of lines(); track line.productId) {
+      <li class="line" [class.has-problem]="line.problem">
+        @if (line.product; as product) {
+          <img [src]="product.imageUrl || placeholder" alt="" appFallbackImage loading="lazy" />
+          <div class="what">
+            <a [routerLink]="['/produkte', product.id]" class="name">{{ product.name }}</a>
+            <span class="unit">{{ product.price | currency }} pro Stück</span>
+            @if (line.problem; as problem) {
+              <span class="problem">
+                {{ problem }}
+                @if (product.stock > 0) {
+                  <button mat-button type="button" (click)="fit(line)">
+                    Auf {{ product.stock }} reduzieren
+                  </button>
+                }
+              </span>
+            }
+          </div>
+          <div class="quantity" role="group" [attr.aria-label]="'Menge von ' + product.name">
+            <button
+              type="button"
+              class="step"
+              (click)="change(line, -1)"
+              [disabled]="line.quantity <= 1"
+              aria-label="Eins weniger"
+            >
+              −
+            </button>
+            <span class="value" aria-live="polite">{{ line.quantity }}</span>
+            <button
+              type="button"
+              class="step"
+              (click)="change(line, 1)"
+              [disabled]="line.quantity >= maxQuantity || line.quantity >= product.stock"
+              aria-label="Eins mehr"
+            >
+              +
+            </button>
+          </div>
+          <span class="line-total">{{ product.price * line.quantity | currency }}</span>
+        } @else {
+          <img [src]="placeholder" alt="" />
+          <div class="what">
+            <span class="name">Produkt nicht mehr verfügbar</span>
+            <span class="problem">{{ line.problem }}</span>
+          </div>
+          <span class="spacer"></span>
+          <span class="spacer"></span>
+        }
+        <button mat-button type="button" class="remove" (click)="remove(line)">Entfernen</button>
+      </li>
+    }
+  </ul>
+
+  <section class="summary">
+    <p class="sum">
+      <span>Summe</span>
+      <strong>{{ total() | currency }}</strong>
+    </p>
+    <p class="hint">Keine echte Zahlung – es ist ein Studienprojekt.</p>
+    @if (hasProblems()) {
+      <p class="hint warn">Bitte passe zuerst die markierten Produkte an.</p>
+    }
+    <button
+      mat-flat-button
+      type="button"
+      class="order"
+      (click)="order()"
+      [disabled]="ordering() || hasProblems()"
+    >
+      @if (ordering()) {
+        Wird bestellt…
+      } @else if (loggedIn()) {
+        Jetzt bestellen
+      } @else {
+        Anmelden und bestellen
+      }
+    </button>
+  </section>
+}

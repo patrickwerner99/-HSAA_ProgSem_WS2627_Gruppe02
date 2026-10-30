@@ -14,7 +14,11 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+import de.hsaa.shop.order.OutOfStockException;
 
 /**
  * Übersetzt jeden Fehler in eine einheitliche Antwort im Format "Problem Details" (RFC 9457):
@@ -72,6 +76,35 @@ public class GlobalExceptionHandler {
 	public ProblemDetail handleMethod(HttpRequestMethodNotSupportedException ex) {
 		return problem(HttpStatus.METHOD_NOT_ALLOWED, "Nicht erlaubt",
 				"Diese Aktion ist hier nicht möglich.");
+	}
+
+	@ExceptionHandler(UnauthorizedException.class)
+	public ProblemDetail handleUnauthorized(UnauthorizedException ex) {
+		return problem(HttpStatus.UNAUTHORIZED, "Nicht angemeldet", ex.getMessage());
+	}
+
+	@ExceptionHandler(ForbiddenException.class)
+	public ProblemDetail handleForbidden(ForbiddenException ex) {
+		return problem(HttpStatus.FORBIDDEN, "Keine Berechtigung", ex.getMessage());
+	}
+
+	/** Nicht genug auf Lager (B2): Meldung plus Liste der betroffenen Produkte unter "items". */
+	@ExceptionHandler(OutOfStockException.class)
+	public ProblemDetail handleOutOfStock(OutOfStockException ex) {
+		ProblemDetail problem = problem(HttpStatus.CONFLICT, "Nicht genug auf Lager", ex.getMessage());
+		problem.setProperty("items", ex.getProblems());
+		return problem;
+	}
+
+	/** Bild größer als spring.servlet.multipart.max-file-size. */
+	@ExceptionHandler(MaxUploadSizeExceededException.class)
+	public ProblemDetail handleTooLarge(MaxUploadSizeExceededException ex) {
+		return problem(HttpStatus.CONTENT_TOO_LARGE, "Datei zu groß", "Das Bild ist zu groß. Erlaubt sind höchstens 5 MB.");
+	}
+
+	@ExceptionHandler(MissingServletRequestPartException.class)
+	public ProblemDetail handleMissingPart(MissingServletRequestPartException ex) {
+		return invalidInput(List.of(new FieldMessage(ex.getRequestPartName(), "Bitte ein Bild auswählen.")));
 	}
 
 	@ExceptionHandler(ConflictException.class)

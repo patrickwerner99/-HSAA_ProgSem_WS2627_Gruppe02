@@ -77,3 +77,54 @@
 .hint {
   font-size: 1rem !important;
 }
+
+.buy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.quantity {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid var(--shop-dark);
+  border-radius: 999px;
+}
+
+.step {
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.step:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.value {
+  min-width: 2rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.add {
+  min-width: 12rem;
+}
+
+.in-cart {
+  margin: 0;
+  color: var(--shop-muted);
+}
+
+.in-cart a {
+  font-weight: 600;
+  color: var(--shop-dark);
+}

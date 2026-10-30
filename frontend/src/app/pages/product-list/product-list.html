@@ -6,6 +6,20 @@
     <input matInput type="search" [formControl]="search" placeholder="z. B. Whey" />
   </mat-form-field>
 
+  <div class="options">
+    <mat-form-field appearance="outline" class="sort" subscriptSizing="dynamic">
+      <mat-label>Sortieren nach</mat-label>
+      <mat-select [value]="sort()" (selectionChange)="selectSort($event.value)">
+        @for (option of sortOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+    <mat-slide-toggle [checked]="inStockOnly()" (change)="toggleInStock($event.checked)">
+      Nur verfügbare
+    </mat-slide-toggle>
+  </div>
+
   @if (categories().length > 0) {
     <div class="pills" role="group" aria-label="Nach Kategorie filtern">
       <button
@@ -70,6 +84,8 @@
           />
           @if (product.stockStatus === 'SOLD_OUT') {
             <span class="badge">Ausverkauft</span>
+          } @else if (product.stockStatus === 'LOW_STOCK') {
+            <span class="badge low">Nur noch {{ product.stock }}</span>
           }
         </div>
         <div class="info">

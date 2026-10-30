@@ -11,3 +11,7 @@ node_modules/
 # Java / Maven
 target/
 *.log
+# Lokale Geheimnisse und Laufzeitdaten (Q3)
+.env
+*.private.env.json
+backend/data/

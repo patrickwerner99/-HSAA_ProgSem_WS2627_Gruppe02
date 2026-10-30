@@ -22,7 +22,7 @@ adr: "keine"
 
 * **Seiten und Dialoge:** Detailseite mit großem Bild links, rechts Name, Kategorie, Preis, Bestandsstatus und Beschreibung. Auf dem Smartphone untereinander.
 * **Hauptaktion und Ablauf:** Klick auf eine Kachel in der Produktliste → Detailseite → „Zurück zur Übersicht“.
-* **Entscheidung und Begründung:** Kunden sehen den Bestand als **Status** statt als genaue Zahl. Ein Status ist auf einen Blick verständlich, und Mitbewerber erfahren keine genauen Lagerzahlen. Die genaue Zahl sieht der Betreiber auf der Pflegeseite.
+* **Entscheidung und Begründung:** Kunden sehen den Bestand als **Status** statt als genaue Zahl. Ein Status ist auf einen Blick verständlich, und Mitbewerber erfahren keine genauen Lagerzahlen. Ausnahme seit Sprint 2: Bei 1–5 Stück steht die genaue Zahl, weil Kunden dann wissen müssen, wie viel sie in den Warenkorb legen können. Die genaue Zahl sieht der Betreiber auf der Pflegeseite.
 * **Mögliche Fehlerstellen:** Produkt existiert nicht (mehr), z. B. alter Link oder gerade gelöscht; ungültige ID in der URL; fehlendes Bild.
 
 ## User Story
@@ -35,7 +35,7 @@ Als **Kunde** möchte ich die Details eines Produkts und seine Verfügbarkeit se
 
 * Gegeben ich bin in der Produktliste, wenn ich auf eine Kachel klicke, dann öffnet sich `/produkte/{id}` mit Bild, Name, Kategorie, Preis (Format „34,90 €“) und Beschreibung.
 * Gegeben der Bestand ist größer als 5, wenn die Detailseite angezeigt wird, dann steht dort in Grün **„Auf Lager“**.
-* Gegeben der Bestand liegt zwischen 1 und 5, wenn die Detailseite angezeigt wird, dann steht dort in Orange **„Nur noch wenige verfügbar“**.
+* Gegeben der Bestand liegt zwischen 1 und 5, wenn die Detailseite angezeigt wird, dann steht dort in Orange die genaue Zahl, z. B. **„Nur noch 3 verfügbar“** (seit Sprint 2, vorher „Nur noch wenige verfügbar“).
 * Gegeben der Bestand ist 0, wenn die Detailseite angezeigt wird, dann steht dort in Rot **„Ausverkauft“**.
 * Der Status ist nicht nur an der Farbe erkennbar, sondern immer auch als Text und mit Symbol (Barrierefreiheit).
 
@@ -53,4 +53,4 @@ Als **Kunde** möchte ich die Details eines Produkts und seine Verfügbarkeit se
 
 ## Offene Punkte
 
-* **Vorgabe sagt „ob und wie viel“ verfügbar ist.** Wir zeigen Kunden bewusst nur den Status. „Nur noch wenige verfügbar“ beantwortet das „wie viel“ nur grob. Im Refinement klären, ob den Dozenten das reicht, oder ob wir ab Bestand 1–5 die genaue Zahl zeigen sollen („Nur noch 3 verfügbar“).
+* ~~Vorgabe sagt „ob und wie viel“ verfügbar ist.~~ **Geklärt in Sprint 2:** Bei 1–5 Stück zeigen wir die genaue Zahl („Nur noch 3 verfügbar“), sonst den Status. Mit dem Warenkorb (0008) braucht der Kunde die Zahl, damit er weiß, wie viel er bestellen kann.

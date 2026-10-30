@@ -1,0 +1,675 @@
+# Hyrox-Shop REST-API – jeder Endpunkt mit Erfolgs- und Fehlerfall (N2, docs/anforderungen/0015)
+#
+# So geht's (IntelliJ IDEA / WebStorm, eingebauter HTTP Client):
+#   1. Shop starten: docker compose up -d --build
+#   2. http-client.private.env.example.json kopieren nach http-client.private.env.json
+#      und das Admin-Passwort eintragen (README → "Admin-Zugang"). Die Datei ist in .gitignore (Q3).
+#   3. Oben Umgebung "dev" wählen, dann "Run All Requests in File".
+#      Jeder Aufruf prüft seinen erwarteten Statuscode selbst (grün/rot im Ergebnisfenster).
+#
+# Die Aufrufe bauen aufeinander auf (Cookie der Sitzung, gemerkte IDs). Am besten immer die ganze
+# Datei von oben ausführen. Mehrfaches Ausführen ist okay: neue Kunden bekommen eine zufällige E-Mail.
+
+########################################################################################
+# Allgemein
+########################################################################################
+
+### Healthcheck – erwartet 200
+GET {{host}}/api/health
+
+> {%
+    client.test("200 OK", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Unbekannte Adresse – erwartet 404 als Problem Details
+GET {{host}}/api/products/1/gibtsnicht
+
+> {%
+    client.test("404 + Problem Details", () => {
+        client.assert(response.status === 404, "Status " + response.status);
+        client.assert(response.contentType.mimeType === "application/problem+json", response.contentType.mimeType);
+    });
+%}
+
+########################################################################################
+# Produkte lesen (für alle) – 0001, 0002, 0012
+########################################################################################
+
+### Produkte, erste Seite (12 Stück) – erwartet 200
+GET {{host}}/api/products?page=0&size=12
+
+> {%
+    client.test("200 + Seite", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.length <= 12, "zu viele Produkte");
+        client.assert(typeof response.body.last === "boolean", "Feld last fehlt");
+    });
+%}
+
+### Suche + Kategorie kombiniert, sortiert nach Preis absteigend, nur verfügbare – erwartet 200
+GET {{host}}/api/products?q=kreatin&sort=price-desc&inStock=true
+
+> {%
+    client.test("200, kein ausverkauftes Produkt", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.every(p => p.stockStatus !== "SOLD_OUT"), "ausverkauftes Produkt in Liste");
+    });
+    // IDs für spätere Aufrufe merken
+    const neutral = response.body.items.find(p => p.name === "Kreatin Neutral");
+    if (neutral) client.global.set("productId", neutral.id);
+%}
+
+### Neuheiten zuerst – erwartet 200
+GET {{host}}/api/products?sort=newest
+
+> {%
+    client.test("200 OK", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: unbekannte Sortierung – erwartet 400 mit Feldfehler "sort"
+GET {{host}}/api/products?sort=billig
+
+> {%
+    client.test("400 + Feld sort", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "sort", JSON.stringify(response.body));
+    });
+%}
+
+### Ein Produkt – erwartet 200 mit stockStatus und imageUrl
+GET {{host}}/api/products/{{productId}}
+
+> {%
+    client.test("200 + stockStatus", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(["IN_STOCK", "LOW_STOCK", "SOLD_OUT"].includes(response.body.stockStatus), "stockStatus fehlt");
+    });
+%}
+
+### FEHLER: Produkt gibt es nicht – erwartet 404
+GET {{host}}/api/products/999999
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### FEHLER: ID ist keine Zahl – erwartet 400
+GET {{host}}/api/products/abc
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+########################################################################################
+# Kategorien lesen (für alle) – 0001, 0003
+########################################################################################
+
+### Alle Kategorien mit Produktanzahl – erwartet 200
+GET {{host}}/api/categories
+
+> {%
+    client.test("200 + Liste", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(Array.isArray(response.body), "keine Liste");
+    });
+    const protein = response.body.find(c => c.name === "Protein");
+    if (protein) client.global.set("fullCategoryId", protein.id);
+%}
+
+### Eine Kategorie – erwartet 200
+GET {{host}}/api/categories/{{fullCategoryId}}
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Kategorie gibt es nicht – erwartet 404
+GET {{host}}/api/categories/999999
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+########################################################################################
+# Als Gast: alles Schreibende ist gesperrt – A2, 0007
+########################################################################################
+
+### Abmelden, damit wir sicher Gast sind – erwartet 204
+POST {{host}}/api/auth/logout
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+### FEHLER: Wer bin ich? als Gast – erwartet 401
+GET {{host}}/api/auth/me
+
+> {%
+    client.test("401", () => client.assert(response.status === 401, "Status " + response.status));
+%}
+
+### FEHLER: Gast legt Kategorie an – erwartet 401
+POST {{host}}/api/categories
+Content-Type: application/json
+
+{ "name": "Hack" }
+
+> {%
+    client.test("401 + Problem Details", () => {
+        client.assert(response.status === 401, "Status " + response.status);
+        client.assert(response.contentType.mimeType === "application/problem+json", response.contentType.mimeType);
+    });
+%}
+
+### FEHLER: Gast löscht Produkt – erwartet 401
+DELETE {{host}}/api/products/{{productId}}
+
+> {%
+    client.test("401", () => client.assert(response.status === 401, "Status " + response.status));
+%}
+
+### FEHLER: Gast bestellt – erwartet 401
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("401", () => client.assert(response.status === 401, "Status " + response.status));
+%}
+
+########################################################################################
+# Konto – A1, 0006
+########################################################################################
+
+### Registrieren mit zufälliger E-Mail – erwartet 201, danach angemeldet
+< {%
+    request.variables.set("customerEmail", "kunde-" + Math.random().toString(36).substring(2, 10) + "@example.de");
+%}
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "name": "Test Kunde", "email": "{{customerEmail}}", "password": "geheim1234" }
+
+> {%
+    client.test("201, Rolle CUSTOMER, kein Passwort in der Antwort", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.body.role === "CUSTOMER", response.body.role);
+        client.assert(response.body.password === undefined && response.body.passwordHash === undefined, "Passwort in Antwort!");
+    });
+    client.global.set("customerEmail", response.body.email);
+%}
+
+### FEHLER: gleiche E-Mail nochmal – erwartet 409
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "name": "Test Kunde", "email": "{{customerEmail}}", "password": "geheim1234" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: ungültige Registrierung – erwartet 400 mit Feldfehlern
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "name": "", "email": "keine-mail", "password": "kurz" }
+
+> {%
+    client.test("400 + 3 Feldfehler", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors.length >= 3, JSON.stringify(response.body.errors));
+    });
+%}
+
+### FEHLER: Anmelden mit falschem Passwort – erwartet 401
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{customerEmail}}", "password": "falsch-falsch" }
+
+> {%
+    client.test("401", () => client.assert(response.status === 401, "Status " + response.status));
+%}
+
+### Anmelden als Kunde – erwartet 200
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{customerEmail}}", "password": "geheim1234" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Wer bin ich? – erwartet 200
+GET {{host}}/api/auth/me
+
+> {%
+    client.test("200 + E-Mail", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.email === client.global.get("customerEmail"), response.body.email);
+    });
+%}
+
+### FEHLER: Kunde legt Kategorie an – erwartet 403
+POST {{host}}/api/categories
+Content-Type: application/json
+
+{ "name": "Hack" }
+
+> {%
+    client.test("403", () => client.assert(response.status === 403, "Status " + response.status));
+%}
+
+### FEHLER: Kunde ändert Preis – erwartet 403
+PATCH {{host}}/api/products/{{productId}}
+Content-Type: application/json
+
+{ "price": 0.01 }
+
+> {%
+    client.test("403", () => client.assert(response.status === 403, "Status " + response.status));
+%}
+
+########################################################################################
+# Bestellen als Kunde – B1, B2, B3, 0009, 0010
+########################################################################################
+
+### Bestellen (mitgeschickter Preis wird ignoriert) – erwartet 201 + Location
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 2, "price": 0.01 } ] }
+
+> {%
+    client.test("201, Location, Preis vom Server", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.headers.valueOf("Location") !== null, "Location fehlt");
+        client.assert(response.body.lines[0].unitPrice > 0.01, "Preis vom Browser übernommen!");
+        client.assert(response.body.status === "RECEIVED", response.body.status);
+    });
+    client.global.set("orderId", response.body.id);
+%}
+
+### FEHLER: mehr bestellen als auf Lager – erwartet 409 mit items
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 99 } ] }
+
+> {%
+    client.test("409 + items", () => {
+        client.assert(response.status === 409, "Status " + response.status);
+        client.assert(response.body.items.length === 1, JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: leerer Warenkorb – erwartet 400
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [] }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Meine Bestellungen – erwartet 200, nur eigene
+GET {{host}}/api/orders?page=0&size=10
+
+> {%
+    client.test("200, nur eigene", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        const me = client.global.get("customerEmail");
+        client.assert(response.body.items.every(o => o.customer.email === me), "fremde Bestellung sichtbar!");
+    });
+%}
+
+### Eine eigene Bestellung – erwartet 200
+GET {{host}}/api/orders/{{orderId}}
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Bestellung gibt es nicht (oder gehört jemand anderem) – erwartet 404
+GET {{host}}/api/orders/999999
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### FEHLER: Kunde setzt "Versendet" – erwartet 403
+PATCH {{host}}/api/orders/{{orderId}}
+Content-Type: application/json
+
+{ "status": "SHIPPED" }
+
+> {%
+    client.test("403", () => client.assert(response.status === 403, "Status " + response.status));
+%}
+
+### Kunde storniert (Bestand kommt zurück) – erwartet 200
+PATCH {{host}}/api/orders/{{orderId}}
+Content-Type: application/json
+
+{ "status": "CANCELLED" }
+
+> {%
+    client.test("200 + Storniert", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.status === "CANCELLED", response.body.status);
+    });
+%}
+
+### FEHLER: nochmal stornieren – erwartet 409
+PATCH {{host}}/api/orders/{{orderId}}
+Content-Type: application/json
+
+{ "status": "CANCELLED" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### Abmelden – erwartet 204
+POST {{host}}/api/auth/logout
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+########################################################################################
+# Als Admin – 0003, 0011, 0014
+########################################################################################
+
+### Anmelden als Admin (Passwort aus http-client.private.env.json) – erwartet 200
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "email": "{{adminEmail}}", "password": "{{adminPassword}}" }
+
+> {%
+    client.test("200 + ADMIN", () => {
+        client.assert(response.status === 200, "Status " + response.status + " – Passwort in http-client.private.env.json richtig?");
+        client.assert(response.body.role === "ADMIN", response.body.role);
+    });
+%}
+
+# ---- Kategorien ----
+
+### Kategorie anlegen – erwartet 201 + Location
+< {%
+    request.variables.set("categoryName", "Test " + Math.random().toString(36).substring(2, 8));
+%}
+POST {{host}}/api/categories
+Content-Type: application/json
+
+{ "name": "{{categoryName}}" }
+
+> {%
+    client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
+    client.global.set("categoryId", response.body.id);
+%}
+
+### FEHLER: Kategorie doppelt (Groß/klein egal) – erwartet 409
+POST {{host}}/api/categories
+Content-Type: application/json
+
+{ "name": "PROTEIN" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: leerer Name – erwartet 400
+POST {{host}}/api/categories
+Content-Type: application/json
+
+{ "name": "  " }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Kategorie umbenennen – erwartet 200
+< {%
+    request.variables.set("newCategoryName", "Test umbenannt " + Math.random().toString(36).substring(2, 8));
+%}
+PUT {{host}}/api/categories/{{categoryId}}
+Content-Type: application/json
+
+{ "name": "{{newCategoryName}}" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Kategorie mit Produkten löschen – erwartet 409
+DELETE {{host}}/api/categories/{{fullCategoryId}}
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+# ---- Produkte ----
+
+### Produkt anlegen – erwartet 201 + Location
+POST {{host}}/api/products
+Content-Type: application/json
+
+{ "name": "Test-Produkt", "description": "Aus der .http-Datei", "price": 19.9, "stock": 3,
+  "imageUrl": null, "categoryId": {{categoryId}} }
+
+> {%
+    client.test("201 + Location", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.headers.valueOf("Location") !== null, "Location fehlt");
+    });
+    client.global.set("newProductId", response.body.id);
+%}
+
+### FEHLER: ungültiges Produkt – erwartet 400 mit Feldfehlern
+POST {{host}}/api/products
+Content-Type: application/json
+
+{ "name": "", "price": -5, "stock": 3.5, "categoryId": {{categoryId}} }
+
+> {%
+    client.test("400 + Feldfehler", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors.length >= 3, JSON.stringify(response.body.errors));
+    });
+%}
+
+### Produkt ganz ändern (PUT) – erwartet 200
+PUT {{host}}/api/products/{{newProductId}}
+Content-Type: application/json
+
+{ "name": "Test-Produkt geändert", "description": null, "price": 21.5, "stock": 7,
+  "imageUrl": null, "categoryId": {{categoryId}} }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Nur den Bestand ändern (PATCH) – erwartet 200
+PATCH {{host}}/api/products/{{newProductId}}
+Content-Type: application/json
+
+{ "stock": 12 }
+
+> {%
+    client.test("200 + Bestand 12", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.stock === 12, response.body.stock);
+    });
+%}
+
+### FEHLER: negativer Bestand – erwartet 400
+PATCH {{host}}/api/products/{{newProductId}}
+Content-Type: application/json
+
+{ "stock": -1 }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+# ---- Bilder ----
+
+### Bild hochladen – erwartet 200, imageUrl ist eine URL der API (D2)
+POST {{host}}/api/products/{{newProductId}}/image
+Content-Type: multipart/form-data; boundary=Grenze
+
+--Grenze
+Content-Disposition: form-data; name="file"; filename="test-bild.png"
+Content-Type: image/png
+
+< ./test-bild.png
+--Grenze--
+
+> {%
+    client.test("200 + /api/images/…", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.imageUrl.startsWith("/api/images/"), response.body.imageUrl);
+    });
+    client.global.set("imageUrl", response.body.imageUrl);
+%}
+
+### Bild abrufen – erwartet 200 image/png
+GET {{host}}{{imageUrl}}
+
+> {%
+    client.test("200 + PNG", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.contentType.mimeType === "image/png", response.contentType.mimeType);
+    });
+%}
+
+### FEHLER: Textdatei statt Bild – erwartet 400
+POST {{host}}/api/products/{{newProductId}}/image
+Content-Type: multipart/form-data; boundary=Grenze
+
+--Grenze
+Content-Disposition: form-data; name="file"; filename="notiz.txt"
+Content-Type: text/plain
+
+Das ist kein Bild.
+--Grenze--
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### FEHLER: Bild gibt es nicht – erwartet 404
+GET {{host}}/api/images/00000000-0000-0000-0000-000000000000.png
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### Bild entfernen – erwartet 200, Produkt ohne Bild (Frontend zeigt Platzhalter, D3)
+DELETE {{host}}/api/products/{{newProductId}}/image
+
+> {%
+    client.test("200 + kein Bild", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.imageUrl === null || response.body.imageUrl === undefined, response.body.imageUrl);
+    });
+%}
+
+# ---- Bestellungen verwalten (B4) ----
+
+### Admin bestellt selbst das Test-Produkt – erwartet 201
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{newProductId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
+    client.global.set("adminOrderId", response.body.id);
+%}
+
+### Alle Bestellungen, nur "Eingegangen" – erwartet 200
+GET {{host}}/api/orders?status=RECEIVED&page=0&size=20
+
+> {%
+    client.test("200, nur RECEIVED", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.every(o => o.status === "RECEIVED"), "falscher Status in Liste");
+    });
+%}
+
+### Status weitersetzen auf "In Bearbeitung" – erwartet 200
+PATCH {{host}}/api/orders/{{adminOrderId}}
+Content-Type: application/json
+
+{ "status": "PROCESSING" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: zurück auf "Eingegangen" – erwartet 409
+PATCH {{host}}/api/orders/{{adminOrderId}}
+Content-Type: application/json
+
+{ "status": "RECEIVED" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: unbekannter Status – erwartet 400
+PATCH {{host}}/api/orders/{{adminOrderId}}
+Content-Type: application/json
+
+{ "status": "VERLOREN" }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Stornieren durch Admin (Bestand kommt zurück) – erwartet 200
+PATCH {{host}}/api/orders/{{adminOrderId}}
+Content-Type: application/json
+
+{ "status": "CANCELLED" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+# ---- Aufräumen ----
+
+### Test-Produkt löschen – erwartet 204
+DELETE {{host}}/api/products/{{newProductId}}
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+### FEHLER: schon gelöscht – erwartet 404
+DELETE {{host}}/api/products/{{newProductId}}
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### Leere Test-Kategorie löschen – erwartet 204
+DELETE {{host}}/api/categories/{{categoryId}}
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+### Abmelden – erwartet 204
+POST {{host}}/api/auth/logout
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}

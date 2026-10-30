@@ -4,7 +4,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import localeDe from '@angular/common/locales/de';
 import { DEFAULT_CURRENCY_CODE, LOCALE_ID } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { Product } from '../../api/models';
 import { ProductListPage } from './product-list';
 
@@ -93,5 +93,36 @@ describe('ProductListPage', () => {
     await fixture.whenStable();
 
     expect(text()).toContain('Noch keine Produkte vorhanden.');
+  });
+
+  it('übernimmt Sortierung und "Nur verfügbare" aus der URL (C2)', async () => {
+    productsRequest().flush({ items: [], page: 0, size: 12, totalItems: 0, last: true });
+    await fixture.whenStable();
+
+    await TestBed.inject(Router).navigateByUrl('/?sort=price-desc&verfuegbar=ja');
+    const request = productsRequest();
+    expect(request.request.params.get('sort')).toBe('price-desc');
+    expect(request.request.params.get('inStock')).toBe('true');
+    request.flush({ items: [], page: 0, size: 12, totalItems: 0, last: true });
+  });
+
+  it('ignoriert eine unbekannte Sortierung in der URL', async () => {
+    productsRequest().flush({ items: [], page: 0, size: 12, totalItems: 0, last: true });
+    await fixture.whenStable();
+
+    await TestBed.inject(Router).navigateByUrl('/?sort=billig');
+    expect(productsRequest().request.params.has('sort')).toBe(false);
+  });
+
+  it('zeigt bei wenig Bestand die genaue Zahl', async () => {
+    productsRequest().flush({
+      items: [product(1, 'EAA Eistee', { stock: 3, stockStatus: 'LOW_STOCK' })],
+      page: 0,
+      size: 12,
+      totalItems: 1,
+      last: true,
+    });
+    await fixture.whenStable();
+    expect(text()).toContain('Nur noch 3');
   });
 });

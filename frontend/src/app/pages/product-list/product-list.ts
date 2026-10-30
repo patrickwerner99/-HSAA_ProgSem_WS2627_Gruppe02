@@ -15,19 +15,34 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatSelectModule } from '@angular/material/select';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { Subscription, debounceTime, distinctUntilChanged, map } from 'rxjs';
 import { CategoryService } from '../../api/category.service';
-import { Category, Product } from '../../api/models';
+import { Category, Product, ProductSort } from '../../api/models';
 import { ProductService } from '../../api/product.service';
 import { userMessage } from '../../shared/errors';
 import { FallbackImageDirective } from '../../shared/fallback-image.directive';
 import { PLACEHOLDER_IMAGE } from '../../shared/format';
 import { ProductListStore } from './product-list.store';
 
+/** Sortierungen in der Auswahl; "name" ist Standard und steht deshalb nicht in der URL. */
+export const SORT_OPTIONS: { value: ProductSort; label: string }[] = [
+  { value: 'name', label: 'Name (A–Z)' },
+  { value: 'price-asc', label: 'Preis aufsteigend' },
+  { value: 'price-desc', label: 'Preis absteigend' },
+  { value: 'newest', label: 'Neuheiten zuerst' },
+];
+
+export function sortFromUrl(value: string | null): ProductSort {
+  return SORT_OPTIONS.some((option) => option.value === value) ? (value as ProductSort) : 'name';
+}
+
 /**
- * Startseite: alle Produkte als Kacheln mit Suche, Kategorie-Filter und endlosem Scrollen
- * (docs/anforderungen/0001, ADR-0002). Suche und Kategorie stehen in der URL (?q=…&kategorie=…).
+ * Startseite: alle Produkte als Kacheln mit Suche, Filtern, Sortierung und endlosem Scrollen
+ * (docs/anforderungen/0001, 0012, ADR-0002). Alles, was die Ansicht bestimmt, steht in der URL
+ * (?q=…&kategorie=…&sort=price-asc&verfuegbar=ja), damit ein gespeicherter Link gleich aussieht (C2).
  */
 @Component({
   selector: 'app-product-list',
@@ -39,6 +54,8 @@ import { ProductListStore } from './product-list.store';
     MatFormFieldModule,
     MatInputModule,
     MatProgressSpinnerModule,
+    MatSelectModule,
+    MatSlideToggleModule,
     FallbackImageDirective,
   ],
   templateUrl: './product-list.html',
@@ -66,8 +83,11 @@ export class ProductListPage {
   protected readonly moreError = signal<string | null>(null);
   protected readonly query = signal('');
   protected readonly selectedCategory = signal<number | null>(null);
+  protected readonly sort = signal<ProductSort>('name');
+  protected readonly inStockOnly = signal(false);
+  protected readonly sortOptions = SORT_OPTIONS;
   protected readonly filterActive = computed(
-    () => this.query() !== '' || this.selectedCategory() !== null,
+    () => this.query() !== '' || this.selectedCategory() !== null || this.inStockOnly(),
   );
 
   private readonly sentinel = viewChild.required<ElementRef<HTMLElement>>('sentinel');
@@ -118,9 +138,17 @@ export class ProductListPage {
     this.updateUrl({ kategorie: id });
   }
 
+  protected selectSort(sort: ProductSort): void {
+    this.updateUrl({ sort: sort === 'name' ? null : sort });
+  }
+
+  protected toggleInStock(only: boolean): void {
+    this.updateUrl({ verfuegbar: only ? 'ja' : null });
+  }
+
   protected resetFilters(): void {
     this.search.setValue('', { emitEvent: false });
-    this.updateUrl({ q: null, kategorie: null });
+    this.updateUrl({ q: null, kategorie: null, verfuegbar: null });
   }
 
   protected retry(): void {
@@ -132,13 +160,18 @@ export class ProductListPage {
     const kategorie = Number(params.get('kategorie'));
     const categoryId = Number.isInteger(kategorie) && kategorie > 0 ? kategorie : null;
 
+    const sort = sortFromUrl(params.get('sort'));
+    const inStockOnly = params.get('verfuegbar') === 'ja';
+
     this.query.set(q);
     this.selectedCategory.set(categoryId);
+    this.sort.set(sort);
+    this.inStockOnly.set(inStockOnly);
     if (this.search.value !== q) {
       this.search.setValue(q, { emitEvent: false });
     }
 
-    this.key = `${q}|${categoryId ?? ''}`;
+    this.key = `${q}|${categoryId ?? ''}|${sort}|${inStockOnly}`;
     const snapshot = this.store.restore(this.key);
     if (snapshot) {
       this.items.set(snapshot.items);
@@ -160,7 +193,13 @@ export class ProductListPage {
     this.moreError.set(null);
 
     this.request = this.productService
-      .search({ q: this.query(), categoryId: this.selectedCategory(), page })
+      .search({
+        q: this.query(),
+        categoryId: this.selectedCategory(),
+        sort: this.sort(),
+        inStock: this.inStockOnly(),
+        page,
+      })
       .subscribe({
         next: (result) => {
           this.items.update((current) =>
@@ -220,7 +259,7 @@ export class ProductListPage {
     });
   }
 
-  private updateUrl(changes: { q?: string | null; kategorie?: number | null }): void {
+  private updateUrl(changes: Record<string, string | number | null>): void {
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: changes,

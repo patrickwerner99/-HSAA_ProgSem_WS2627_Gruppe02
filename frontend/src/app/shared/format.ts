@@ -4,7 +4,8 @@ import { StockStatus } from '../api/models';
 export const PLACEHOLDER_IMAGE = '/images/placeholder.svg';
 
 /** Gleiche Regel wie im Backend (ProductRules.IMAGE_URL_PATTERN). */
-export const IMAGE_URL_PATTERN = /^(https?:\/\/\S+|\/images\/[A-Za-z0-9._-]+)?$/;
+export const IMAGE_URL_PATTERN =
+  /^(https?:\/\/\S+|\/images\/[A-Za-z0-9._-]+|\/api\/images\/[A-Za-z0-9._-]+)?$/;
 
 /** Erlaubt "34", "34,9", "34,90" und "34.90", höchstens 4 Stellen vor dem Komma. */
 const PRICE_PATTERN = /^\d{1,4}([.,]\d{1,2})?$/;
@@ -55,6 +56,14 @@ const STOCK_VIEWS: Record<StockStatus, StockStatusView> = {
   SOLD_OUT: { label: 'Ausverkauft', cssClass: 'stock-out', symbol: '✕' },
 };
 
-export function stockView(status: StockStatus): StockStatusView {
-  return STOCK_VIEWS[status];
+/**
+ * Anzeige des Bestands. Mit Stückzahl wird aus "Nur noch wenige verfügbar" ein genaues
+ * "Nur noch 3 verfügbar" (offener Punkt aus 0002, in Sprint 2 geklärt).
+ */
+export function stockView(status: StockStatus, stock?: number): StockStatusView {
+  const view = STOCK_VIEWS[status];
+  if (status === 'LOW_STOCK' && stock != null && stock > 0) {
+    return { ...view, label: `Nur noch ${stock} verfügbar` };
+  }
+  return view;
 }

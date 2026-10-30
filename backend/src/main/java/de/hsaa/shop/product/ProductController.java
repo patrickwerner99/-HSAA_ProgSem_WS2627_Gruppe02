@@ -14,18 +14,21 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import de.hsaa.shop.common.PageResponse;
 import jakarta.validation.Valid;
 
 /**
  * REST-Endpunkte für Produkte unter /api/products.
  *
  * <pre>
- * GET    /api/products?q=whey&amp;categoryId=2&amp;page=0&amp;size=12   Liste (endloses Scrollen)
+ * GET    /api/products?q=whey&amp;categoryId=2&amp;inStock=true&amp;sort=price-asc&amp;page=0&amp;size=12
+ *                                                    Liste (Suche, Filter, Sortierung, endloses Scrollen)
  * GET    /api/products/{id}                                 Details
  * POST   /api/products                                      anlegen
  * PUT    /api/products/{id}                                 ganzes Produkt ändern
  * PATCH  /api/products/{id}                                 einzelne Felder ändern
  * DELETE /api/products/{id}                                 löschen
+ * Schreibende Aufrufe nur für ADMIN (SecurityConfig).
  * </pre>
  */
 @RestController
@@ -42,9 +45,11 @@ public class ProductController {
 	public PageResponse<ProductResponse> list(
 			@RequestParam(name = "q", required = false) String query,
 			@RequestParam(required = false) Long categoryId,
+			@RequestParam(defaultValue = "false") boolean inStock,
+			@RequestParam(defaultValue = "name") String sort,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "" + ProductService.DEFAULT_PAGE_SIZE) int size) {
-		return service.search(query, categoryId, page, size);
+		return service.search(query, categoryId, inStock, sort, page, size);
 	}
 
 	@GetMapping("/{id}")

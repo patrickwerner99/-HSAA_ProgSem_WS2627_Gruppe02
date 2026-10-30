@@ -8,12 +8,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
@@ -31,9 +35,14 @@ class CategoryApiTests {
 
 	private MockMvc mvc;
 
+	/** Schreibende Aufrufe brauchen seit Sprint 2 einen Admin (ADR-0004). */
+	private static RequestPostProcessor admin() {
+		return user("admin@hyrox-shop.local").roles("ADMIN");
+	}
+
 	@BeforeEach
 	void setUp() {
-		mvc = MockMvcBuilders.webAppContextSetup(context).build();
+		mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
 	}
 
 	@Test
@@ -46,7 +55,7 @@ class CategoryApiTests {
 
 	@Test
 	void createCategory() throws Exception {
-		mvc.perform(post("/api/categories")
+		mvc.perform(post("/api/categories").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"name\": \"Recovery\" }"))
 			.andExpect(status().isCreated())
@@ -56,7 +65,7 @@ class CategoryApiTests {
 
 	@Test
 	void duplicateNameIgnoringCaseIsRejected() throws Exception {
-		mvc.perform(post("/api/categories")
+		mvc.perform(post("/api/categories").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"name\": \"protein\" }"))
 			.andExpect(status().isConflict())
@@ -65,7 +74,7 @@ class CategoryApiTests {
 
 	@Test
 	void emptyNameIsRejected() throws Exception {
-		mvc.perform(post("/api/categories")
+		mvc.perform(post("/api/categories").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"name\": \"  \" }"))
 			.andExpect(status().isBadRequest())
@@ -75,7 +84,7 @@ class CategoryApiTests {
 	@Test
 	void renameCategory() throws Exception {
 		long id = categories.findByNameIgnoreCase("Aminosäuren").orElseThrow().getId();
-		mvc.perform(put("/api/categories/" + id)
+		mvc.perform(put("/api/categories/" + id).with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"name\": \"Aminos\" }"))
 			.andExpect(status().isOk())
@@ -85,7 +94,7 @@ class CategoryApiTests {
 	@Test
 	void categoryWithProductsCannotBeDeleted() throws Exception {
 		long id = categories.findByNameIgnoreCase("Protein").orElseThrow().getId();
-		mvc.perform(delete("/api/categories/" + id))
+		mvc.perform(delete("/api/categories/" + id).with(admin()))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.detail").value(
 					"Die Kategorie enthält noch 4 Produkte. Bitte die Produkte zuerst verschieben oder löschen."));
@@ -94,7 +103,7 @@ class CategoryApiTests {
 	@Test
 	void emptyCategoryCanBeDeleted() throws Exception {
 		long id = categories.save(new Category("Leer")).getId();
-		mvc.perform(delete("/api/categories/" + id)).andExpect(status().isNoContent());
+		mvc.perform(delete("/api/categories/" + id).with(admin())).andExpect(status().isNoContent());
 		mvc.perform(get("/api/categories/" + id)).andExpect(status().isNotFound());
 	}
 }

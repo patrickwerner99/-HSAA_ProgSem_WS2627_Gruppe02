@@ -36,8 +36,10 @@ FROM eclipse-temurin:21-jre-alpine AS runtime
 
 WORKDIR /app
 
+# /data/images nimmt die hochgeladenen Produktbilder auf (Volume, ADR-0007).
 RUN addgroup -S spring && adduser -S spring -G spring \
-    && chown -R spring:spring /app
+    && mkdir -p /data/images \
+    && chown -R spring:spring /app /data
 USER spring:spring
 
 COPY --from=build /workspace/target/shop-*.jar /app/shop.jar

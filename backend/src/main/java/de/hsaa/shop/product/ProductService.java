@@ -11,6 +11,7 @@ import de.hsaa.shop.category.Category;
 import de.hsaa.shop.category.CategoryRepository;
 import de.hsaa.shop.common.InvalidFieldException;
 import de.hsaa.shop.common.NotFoundException;
+import de.hsaa.shop.common.PageResponse;
 
 /** Geschäftslogik für Produkte: Suche mit Nachladen, Anlegen, Ändern (ganz oder einzeln), Löschen. */
 @Service
@@ -29,24 +30,46 @@ public class ProductService {
 		this.categories = categories;
 	}
 
+	/**
+	 * Suchen, filtern und sortieren (docs/anforderungen/0001, 0012).
+	 *
+	 * @param sort {@code name} (Standard), {@code price-asc}, {@code price-desc} oder {@code newest}
+	 */
 	@Transactional(readOnly = true)
-	public PageResponse<ProductResponse> search(String query, Long categoryId, int page, int size) {
+	public PageResponse<ProductResponse> search(String query, Long categoryId, boolean inStockOnly, String sort,
+			int page, int size) {
 		String text = query == null ? "" : query.trim();
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-		Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("name").ascending().and(Sort.by("id")));
+		Pageable pageable = PageRequest.of(safePage, safeSize, toSort(sort));
 
-		Page<Product> result = categoryId == null
-				? products.findByNameContainingIgnoreCase(text, pageable)
-				: products.findByCategoryIdAndNameContainingIgnoreCase(categoryId, text, pageable);
-
-		return new PageResponse<>(
-				result.getContent().stream().map(ProductResponse::from).toList(),
-				result.getNumber(),
-				result.getSize(),
-				result.getTotalElements(),
-				result.isLast());
+		Page<Product> result = products.search(text, categoryId, inStockOnly, pageable);
+		return PageResponse.of(result, ProductResponse::from);
 	}
+
+	private static Sort toSort(String sort) {
+		if (sort == null || sort.isBlank() || sort.equals("name")) {
+			return Sort.by("name").ascending().and(Sort.by("id"));
+		}
+		return switch (sort) {
+			case "price-asc" -> Sort.by("price").ascending().and(Sort.by("name")).and(Sort.by("id"));
+			case "price-desc" -> Sort.by("price").descending().and(Sort.by("name")).and(Sort.by("id"));
+			// Neuere Produkte haben eine höhere ID.
+			case "newest" -> Sort.by("id").descending();
+			default -> throw new InvalidFieldException("sort",
+					"Unbekannte Sortierung. Erlaubt: name, price-asc, price-desc, newest.");
+		};
+	}
+
+	/** Setzt die Bild-Adresse nach einem Upload und liefert die alte zurück (zum Aufräumen). */
+	public String replaceImage(Long id, String imageUrl) {
+		Product product = load(id);
+		String old = product.getImageUrl();
+		product.setImageUrl(imageUrl);
+		return old;
+	}
+
+
 
 	@Transactional(readOnly = true)
 	public ProductResponse findById(Long id) {

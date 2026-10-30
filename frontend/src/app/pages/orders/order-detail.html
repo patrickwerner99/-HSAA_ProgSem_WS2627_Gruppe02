@@ -1,0 +1,114 @@
+<a class="back" [routerLink]="backLink()"
+  >← {{ isAdmin() ? 'Alle Bestellungen' : 'Meine Bestellungen' }}</a
+>
+
+@if (loading()) {
+  <div class="state-message" aria-live="polite"><mat-spinner diameter="36" /></div>
+} @else if (notFound()) {
+  <div class="state-message">
+    <p>Diese Bestellung gibt es nicht.</p>
+    <a mat-flat-button [routerLink]="backLink()">Zu den Bestellungen</a>
+  </div>
+} @else if (loadError(); as message) {
+  <div class="state-message error" role="alert">
+    <p>Die Bestellung konnte nicht geladen werden.</p>
+    <p class="hint">{{ message }}</p>
+    <button mat-flat-button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+} @else if (order(); as order) {
+  <header class="head">
+    <h1>Bestellung #{{ order.id }}</h1>
+    <app-status-chip [status]="order.status" />
+  </header>
+
+  <dl class="facts">
+    <div>
+      <dt>Bestellt am</dt>
+      <dd>{{ order.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</dd>
+    </div>
+    @if (order.updatedAt !== order.createdAt) {
+      <div>
+        <dt>Zuletzt geändert</dt>
+        <dd>{{ order.updatedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</dd>
+      </div>
+    }
+    @if (isAdmin()) {
+      <div>
+        <dt>Kunde</dt>
+        <dd>{{ order.customer.name }} ({{ order.customer.email }})</dd>
+      </div>
+    }
+  </dl>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">Produkt</th>
+          <th scope="col" class="num">Einzelpreis</th>
+          <th scope="col" class="num">Menge</th>
+          <th scope="col" class="num">Summe</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (line of order.lines; track line.productId) {
+          <tr>
+            <td>{{ line.productName }}</td>
+            <td class="num">{{ line.unitPrice | currency }}</td>
+            <td class="num">{{ line.quantity }}</td>
+            <td class="num">{{ line.lineTotal | currency }}</td>
+          </tr>
+        }
+      </tbody>
+      <tfoot>
+        <tr>
+          <th scope="row" colspan="3">Gesamt</th>
+          <td class="num total">{{ order.total | currency }}</td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+
+  @if (isAdmin()) {
+    <section class="actions">
+      <h2>Status ändern</h2>
+      @if (order.allowedNextStatuses.length === 0) {
+        <p class="hint">
+          „{{ labels[order.status] }}“ ist ein Endstatus, hier geht es nicht weiter.
+        </p>
+      } @else {
+        <div class="buttons">
+          @for (next of order.allowedNextStatuses; track next) {
+            <button
+              mat-stroked-button
+              type="button"
+              [class.danger]="next === 'CANCELLED'"
+              [disabled]="saving()"
+              (click)="setStatus(next)"
+            >
+              Auf „{{ labels[next] }}“ setzen
+            </button>
+          }
+        </div>
+        @if (order.allowedNextStatuses.includes('CANCELLED')) {
+          <p class="hint">Beim Stornieren kommt der Bestand automatisch zurück.</p>
+        }
+      }
+    </section>
+  } @else if (canCancel()) {
+    <section class="actions">
+      <p class="hint">
+        Solange wir deine Bestellung noch nicht bearbeiten, kannst du sie stornieren.
+      </p>
+      <button
+        mat-stroked-button
+        type="button"
+        class="danger"
+        [disabled]="saving()"
+        (click)="cancel()"
+      >
+        Bestellung stornieren
+      </button>
+    </section>
+  }
+}

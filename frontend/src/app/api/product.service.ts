@@ -1,7 +1,7 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { PageResponse, Product, ProductInput } from './models';
+import { PageResponse, Product, ProductInput, ProductSort } from './models';
 
 /** Eine Ladung beim endlosen Scrollen (ADR-0002), passend zum Backend. */
 export const PAGE_SIZE = 12;
@@ -9,6 +9,8 @@ export const PAGE_SIZE = 12;
 export interface ProductQuery {
   q?: string | null;
   categoryId?: number | null;
+  sort?: ProductSort;
+  inStock?: boolean;
   page?: number;
   size?: number;
 }
@@ -28,6 +30,12 @@ export class ProductService {
     }
     if (query.categoryId != null) {
       params = params.set('categoryId', query.categoryId);
+    }
+    if (query.sort && query.sort !== 'name') {
+      params = params.set('sort', query.sort);
+    }
+    if (query.inStock) {
+      params = params.set('inStock', true);
     }
     return this.http.get<PageResponse<Product>>('/api/products', { params });
   }
@@ -52,5 +60,16 @@ export class ProductService {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`/api/products/${id}`);
+  }
+
+  /** Bild hochladen (nur Admin). Das Backend speichert es und liefert die neue imageUrl (D1, D2). */
+  uploadImage(id: number, file: File): Observable<Product> {
+    const body = new FormData();
+    body.append('file', file);
+    return this.http.post<Product>(`/api/products/${id}/image`, body);
+  }
+
+  removeImage(id: number): Observable<Product> {
+    return this.http.delete<Product>(`/api/products/${id}/image`);
   }
 }

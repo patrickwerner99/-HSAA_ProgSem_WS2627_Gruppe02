@@ -35,6 +35,42 @@
         </p>
       }
 
+      @if (product.stock > 0) {
+        <div class="buy">
+          @if (maxAddable() > 0) {
+            <div class="quantity" role="group" aria-label="Menge">
+              <button
+                type="button"
+                class="step"
+                (click)="changeQuantity(-1)"
+                [disabled]="quantity() <= 1"
+                aria-label="Eins weniger"
+              >
+                −
+              </button>
+              <span class="value" aria-live="polite">{{ quantity() }}</span>
+              <button
+                type="button"
+                class="step"
+                (click)="changeQuantity(1)"
+                [disabled]="quantity() >= maxAddable()"
+                aria-label="Eins mehr"
+              >
+                +
+              </button>
+            </div>
+            <button mat-flat-button type="button" class="add" (click)="addToCart()">
+              In den Warenkorb
+            </button>
+          } @else {
+            <p class="hint">Du hast schon den ganzen Bestand im Warenkorb.</p>
+          }
+        </div>
+        @if (inCart() > 0) {
+          <p class="in-cart">{{ inCart() }} Stück im <a routerLink="/warenkorb">Warenkorb</a></p>
+        }
+      }
+
       @if (product.description) {
         <p class="description">{{ product.description }}</p>
       }

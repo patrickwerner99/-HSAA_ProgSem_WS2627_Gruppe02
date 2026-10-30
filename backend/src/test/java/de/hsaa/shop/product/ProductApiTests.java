@@ -12,12 +12,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.WebApplicationContext;
@@ -41,9 +45,14 @@ class ProductApiTests {
 
 	private MockMvc mvc;
 
+	/** Schreibende Aufrufe brauchen seit Sprint 2 einen Admin (ADR-0004). */
+	private static RequestPostProcessor admin() {
+		return user("admin@hyrox-shop.local").roles("ADMIN");
+	}
+
 	@BeforeEach
 	void setUp() {
-		mvc = MockMvcBuilders.webAppContextSetup(context).build();
+		mvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
 	}
 
 	private long categoryId(String name) {
@@ -101,6 +110,45 @@ class ProductApiTests {
 			.andExpect(jsonPath("$.totalItems").value(0));
 	}
 
+	// ---- 0012 Sortieren und Filtern ----
+
+	@Test
+	void sortByPriceDescending() throws Exception {
+		mvc.perform(get("/api/products").param("sort", "price-desc"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].price").value(39.9))
+			.andExpect(jsonPath("$.items[0].name").value("Hyrox-Supplement Beere"));
+	}
+
+	@Test
+	void sortByPriceAscending() throws Exception {
+		mvc.perform(get("/api/products").param("sort", "price-asc"))
+			.andExpect(jsonPath("$.items[0].price").value(24.9));
+	}
+
+	@Test
+	void newestFirst() throws Exception {
+		mvc.perform(post("/api/products").with(admin())
+					.contentType(MediaType.APPLICATION_JSON).content(validProduct(categoryId("Kreatin"))))
+			.andExpect(status().isCreated());
+		mvc.perform(get("/api/products").param("sort", "newest"))
+			.andExpect(jsonPath("$.items[0].name").value("Kreatin Mango"));
+	}
+
+	@Test
+	void inStockOnlyHidesSoldOutProducts() throws Exception {
+		mvc.perform(get("/api/products").param("inStock", "true").param("size", "50"))
+			.andExpect(jsonPath("$.totalItems").value(12))
+			.andExpect(jsonPath("$.items[*].stockStatus", not(hasItem("SOLD_OUT"))));
+	}
+
+	@Test
+	void unknownSortIsRejected() throws Exception {
+		mvc.perform(get("/api/products").param("sort", "billig"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[0].field").value("sort"));
+	}
+
 	// ---- 0002 Details und Bestand ----
 
 	@Test
@@ -128,7 +176,7 @@ class ProductApiTests {
 
 	@Test
 	void createReturns201AndLocation() throws Exception {
-		mvc.perform(post("/api/products")
+		mvc.perform(post("/api/products").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(validProduct(categoryId("Kreatin"))))
 			.andExpect(status().isCreated())
@@ -141,7 +189,7 @@ class ProductApiTests {
 	@Test
 	void putReplacesWholeProduct() throws Exception {
 		long id = createProduct();
-		mvc.perform(put("/api/products/" + id)
+		mvc.perform(put("/api/products/" + id).with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{ "name": "Kreatin Mango XL", "price": 29.9, "stock": 3,
@@ -157,7 +205,7 @@ class ProductApiTests {
 	@Test
 	void patchChangesOnlyTheGivenField() throws Exception {
 		long id = createProduct();
-		mvc.perform(patch("/api/products/" + id)
+		mvc.perform(patch("/api/products/" + id).with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"stock\": 0 }"))
 			.andExpect(status().isOk())
@@ -171,7 +219,7 @@ class ProductApiTests {
 	@Test
 	void deleteRemovesProduct() throws Exception {
 		long id = createProduct();
-		mvc.perform(delete("/api/products/" + id)).andExpect(status().isNoContent());
+		mvc.perform(delete("/api/products/" + id).with(admin())).andExpect(status().isNoContent());
 		mvc.perform(get("/api/products/" + id)).andExpect(status().isNotFound());
 	}
 
@@ -179,7 +227,7 @@ class ProductApiTests {
 
 	@Test
 	void invalidProductReturns400WithFieldErrors() throws Exception {
-		mvc.perform(post("/api/products")
+		mvc.perform(post("/api/products").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{ "name": "", "price": 0, "stock": -1, "imageUrl": "kein-link",
@@ -197,7 +245,7 @@ class ProductApiTests {
 
 	@Test
 	void fractionalStockIsRejected() throws Exception {
-		mvc.perform(patch("/api/products/" + createProduct())
+		mvc.perform(patch("/api/products/" + createProduct()).with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"stock\": 3.5 }"))
 			.andExpect(status().isBadRequest())
@@ -206,7 +254,7 @@ class ProductApiTests {
 
 	@Test
 	void unknownCategoryIsAFieldError() throws Exception {
-		mvc.perform(post("/api/products")
+		mvc.perform(post("/api/products").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(validProduct(999999)))
 			.andExpect(status().isBadRequest())
@@ -215,7 +263,7 @@ class ProductApiTests {
 
 	@Test
 	void brokenJsonReturns400WithoutTechnicalDetails() throws Exception {
-		mvc.perform(post("/api/products")
+		mvc.perform(post("/api/products").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("{ \"price\": \"abc\" "))
 			.andExpect(status().isBadRequest())
@@ -223,7 +271,7 @@ class ProductApiTests {
 	}
 
 	private long createProduct() throws Exception {
-		String json = mvc.perform(post("/api/products")
+		String json = mvc.perform(post("/api/products").with(admin())
 					.contentType(MediaType.APPLICATION_JSON)
 					.content(validProduct(categoryId("Kreatin"))))
 			.andExpect(status().isCreated())

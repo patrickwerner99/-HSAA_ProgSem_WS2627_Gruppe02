@@ -10,27 +10,66 @@ und unser eigenes Hyrox-Supplement, jeweils in mehreren Sorten.
 
 ## Schnellstart
 
-Voraussetzung: Docker mit Compose-Plugin (Windows: Docker Desktop mit WSL 2).
+Voraussetzung: Docker mit Compose (Windows: Docker Desktop mit WSL 2).
 
 ```bash
-docker-compose up -d --build
+git clone <repo-url> && cd <repo-ordner>
+docker compose up -d --build
 ```
 
 Dann <http://localhost> öffnen. Beim ersten Start werden 13 Beispielprodukte in 4 Kategorien
-eingespielt. Der erste Build dauert ein paar Minuten (Maven und npm laden Abhängigkeiten).
+und ein Admin-Konto angelegt. Der erste Build dauert ein paar Minuten (Maven und npm laden
+Abhängigkeiten, die Backend-Tests laufen im Build mit).
+
+### Admin-Zugang
+
+| | |
+| --- | --- |
+| E-Mail | `admin@hyrox-shop.local` |
+| Passwort | wird beim **ersten** Start zufällig erzeugt und steht im Backend-Log |
+
+```powershell
+docker compose logs backend | Select-String -Context 0,3 "Admin-Zugang"     # Windows PowerShell
+docker compose logs backend | grep -A3 "Admin-Zugang"                       # macOS / Linux
+```
+
+Eigenes Passwort statt Zufall: neben `docker-compose.yml` eine Datei `.env` mit
+`ADMIN_PASSWORD=dein-passwort` anlegen (steht in `.gitignore`, kommt nie ins Repo), dann
+`docker compose down -v` und neu starten. Warum so: [ADR-0008](docs/adr/0008-admin-zugang-ohne-passwort-im-repo.md).
+
+Kunden-Konten legt man im Shop selbst an („Anmelden“ → „Jetzt registrieren“).
 
 | Seite | Adresse |
 | --- | --- |
 | Shop (Produktliste) | <http://localhost/> |
+| Sortiert und gefiltert (Beispiel-Link) | <http://localhost/?sort=price-asc&verfuegbar=ja> |
 | Produktdetails | <http://localhost/produkte/1> |
-| Pflege (Produkte und Kategorien) | <http://localhost/pflege> |
+| Warenkorb | <http://localhost/warenkorb> |
+| Meine Bestellungen | <http://localhost/bestellungen> |
+| Pflege (nur Admin) | <http://localhost/pflege/produkte>, `/pflege/kategorien`, `/pflege/bestellungen` |
 
 ```bash
-docker-compose ps          # Status, alle drei Container sollten laufen bzw. "healthy" sein
-docker-compose logs -f     # Logs verfolgen
-docker-compose down        # stoppen, Daten bleiben erhalten
-docker-compose down -v     # stoppen UND Datenbank löschen → beim nächsten Start wieder Beispieldaten
+docker compose ps          # Status, alle drei Container sollten "healthy" sein
+docker compose logs -f     # Logs verfolgen
+docker compose down        # stoppen, Daten bleiben erhalten (Produkte, Konten, Bestellungen, Bilder)
+docker compose down -v     # stoppen UND alles löschen → beim nächsten Start Beispieldaten + neues Admin-Passwort
 ```
+
+## Sprint 2: Einkaufen
+
+| Nr. | Anforderung | Vorgabe | Wo im Code |
+| --- | --- | --- | --- |
+| [0006](docs/anforderungen/0006-kundenkonto.md) | Kundenkonto | A1 | `account/`, `pages/account/`, `api/auth.service.ts` |
+| [0007](docs/anforderungen/0007-admin-bereich-geschuetzt.md) | Admin-Bereich geschützt, auch per API | A2 | `security/SecurityConfig.java`, `shared/auth.ts` |
+| [0008](docs/anforderungen/0008-warenkorb.md) | Warenkorb | B1 | `shared/cart.service.ts`, `pages/cart/` |
+| [0009](docs/anforderungen/0009-bestellen.md) | Bestellen, Bestand, Preise vom Shop | B1–B3 | `order/OrderService.java#place` |
+| [0010](docs/anforderungen/0010-meine-bestellungen.md) | Meine Bestellungen, stornieren | A1 | `pages/orders/` |
+| [0011](docs/anforderungen/0011-bestellungen-verwalten.md) | Bestellungen verwalten | B4 | `pages/admin/orders-tab.ts`, `OrderStatus.java` |
+| [0012](docs/anforderungen/0012-sortieren-filtern.md) | Suchen, filtern, sortieren | C1 | `ProductService#search`, `pages/product-list/` |
+| [0013](docs/anforderungen/0013-ansichten-als-link.md) | Jede Ansicht als Link | C2 | `app.routes.ts`, Query-Parameter in den Seiten |
+| [0014](docs/anforderungen/0014-produktbilder.md) | Produktbilder hochladen | D1–D3 | `image/`, `product-form-dialog.ts`, `fallback-image.directive.ts` |
+| [0015](docs/anforderungen/0015-rest-api-und-http-datei.md) | REST-API, `.http`-Datei | N1, N2 | [`http/api.http`](http/api.http) |
+| [0016](docs/anforderungen/0016-start-daten-geheimnisse.md) | Start, Daten, keine Geheimnisse | Q1–Q3 | `docker-compose.yml`, `AdminAccountInitializer.java` |
 
 ## Sprint 1: Das Schaufenster
 
@@ -43,7 +82,7 @@ docker-compose down -v     # stoppen UND Datenbank löschen → beim nächsten S
 | [0005](docs/anforderungen/0005-fehlermeldungen.md) | Sinnvolle Fehlermeldungen | `GlobalExceptionHandler.java`, `frontend/src/app/shared/errors.ts` |
 
 Architekturentscheidungen: [docs/adr/](docs/adr/README.md).
-Erklärung des Codes fürs Review: [docs/sprint-1-spickzettel.md](docs/sprint-1-spickzettel.md).
+Erklärung des Codes fürs Review: [Sprint 1](docs/sprint-1-spickzettel.md), [Sprint 2](docs/sprint-2-spickzettel.md).
 
 ## Wie eine Anfrage läuft
 
@@ -51,6 +90,8 @@ Erklärung des Codes fürs Review: [docs/sprint-1-spickzettel.md](docs/sprint-1-
 Browser ──▶ frontend (nginx :80) ──▶ index.html + JS/CSS + /images/*.svg
                     │
                     └──▶ /api/* ──▶ backend (Spring Boot :8080) ──▶ db (MariaDB :3306)
+                                         │
+                                         └──▶ /data/images (Volume, hochgeladene Bilder)
 ```
 
 Das Frontend ruft nur **relative** Pfade wie `/api/products` auf; nginx leitet alles unter `/api/`
@@ -59,19 +100,34 @@ erreichbar. Startreihenfolge über Healthchecks: `db` → `backend` → `fronten
 
 ## REST-API
 
-| Methode | Pfad | Zweck |
-| --- | --- | --- |
-| GET | `/api/products?q=&categoryId=&page=0&size=12` | Produkte suchen, je 12 pro Ladung (endloses Scrollen) |
-| GET | `/api/products/{id}` | Produktdetails inkl. `stockStatus` |
-| POST | `/api/products` | Produkt anlegen |
-| PUT | `/api/products/{id}` | ganzes Produkt ändern |
-| PATCH | `/api/products/{id}` | einzelne Felder ändern, z. B. `{ "stock": 10 }` |
-| DELETE | `/api/products/{id}` | Produkt löschen |
-| GET | `/api/categories` | alle Kategorien inkl. `productCount` |
-| POST / PUT / DELETE | `/api/categories[/{id}]` | Kategorie anlegen, umbenennen, löschen (nur wenn leer) |
-| GET | `/api/health` | Healthcheck für Docker |
+Alle Endpunkte mit Erfolgs- und Fehlerfall zum Ausprobieren: [`http/api.http`](http/api.http)
+(IntelliJ/WebStorm: Umgebung „dev“ wählen, „Run All“; vorher Admin-Passwort in
+`http/http-client.private.env.json` eintragen, Vorlage liegt daneben).
 
-Fehler kommen immer als Problem Details (RFC 9457), siehe [ADR-0003](docs/adr/0003-validierung-im-backend-und-einheitliche-fehler.md):
+| Methode | Pfad | Wer | Zweck / Statuscodes |
+| --- | --- | --- | --- |
+| GET | `/api/products?q=&categoryId=&sort=&inStock=&page=0&size=12` | alle | Produkte suchen, filtern, sortieren (`name`, `price-asc`, `price-desc`, `newest`) · 200, 400 |
+| GET | `/api/products/{id}` | alle | Produkt inkl. `stock`, `stockStatus`, `imageUrl` · 200, 404 |
+| POST | `/api/products` | Admin | anlegen · 201 + Location, 400, 401, 403 |
+| PUT | `/api/products/{id}` | Admin | ganz ändern · 200, 400, 404 |
+| PATCH | `/api/products/{id}` | Admin | einzelne Felder, z. B. `{ "stock": 10 }` · 200, 400, 404 |
+| DELETE | `/api/products/{id}` | Admin | löschen · 204, 404 |
+| POST | `/api/products/{id}/image` | Admin | Bild hochladen (multipart `file`, PNG/JPG/WebP/GIF, max. 5 MB) · 200, 400, 413 |
+| DELETE | `/api/products/{id}/image` | Admin | Bild entfernen · 200 |
+| GET | `/api/images/{name}` | alle | Bilddatei · 200, 404 |
+| GET | `/api/categories`, `/api/categories/{id}` | alle | Kategorien inkl. `productCount` · 200, 404 |
+| POST / PUT / DELETE | `/api/categories[/{id}]` | Admin | anlegen, umbenennen, löschen (nur wenn leer) · 201/200/204, 400, 409 |
+| POST | `/api/auth/register` | alle | Konto anlegen und anmelden · 201, 400, 409 |
+| POST | `/api/auth/login` | alle | anmelden (Sitzungs-Cookie) · 200, 401 |
+| POST | `/api/auth/logout` | alle | abmelden · 204 |
+| GET | `/api/auth/me` | angemeldet | wer bin ich · 200, 401 |
+| POST | `/api/orders` | angemeldet | bestellen `{ "items": [{ "productId", "quantity" }] }` · 201 + Location, 400, 401, 409 |
+| GET | `/api/orders?status=&page=&size=` | angemeldet | Kunde: eigene, Admin: alle · 200 |
+| GET | `/api/orders/{id}` | angemeldet | eine Bestellung · 200, 404 |
+| PATCH | `/api/orders/{id}` | angemeldet | Status `{ "status": "PROCESSING" }`; Kunde nur Storno · 200, 400, 403, 409 |
+| GET | `/api/health` | alle | Healthcheck für Docker |
+
+Fehler kommen immer als Problem Details (RFC 9457), auch 401/403, siehe [ADR-0003](docs/adr/0003-validierung-im-backend-und-einheitliche-fehler.md):
 
 ```json
 { "status": 400, "title": "Ungültige Eingabe", "detail": "Bitte prüfe die markierten Felder.",
@@ -80,17 +136,26 @@ Fehler kommen immer als Problem Details (RFC 9457), siehe [ADR-0003](docs/adr/00
 
 ## Tests
 
-Beide Testsuites laufen automatisch im Docker-Build mit (`docker-compose up --build`). Auf dem Rechner:
+Die Backend-Tests laufen bei jedem `docker compose up --build` mit (schlägt einer fehl, baut das
+Image nicht). Auf dem Rechner:
 
 ```bash
 cd backend  && ./mvnw test                      # JUnit + MockMvc gegen H2, braucht JDK 21
 cd frontend && npm install && npx ng test       # Vitest
 ```
 
+| Bereich | Backend | Frontend |
+| --- | --- | --- |
+| Konto, Rechte (A1, A2) | `AuthApiTests`, `AccessRulesTests` | `auth.spec.ts` |
+| Bestellen, Bestand, Preise, Status (B1–B4) | `OrderApiTests` | `cart.spec.ts`, `cart.service.spec.ts` |
+| Suchen, Filtern, Sortieren (C1, C2) | `ProductApiTests` | `product-list.spec.ts` |
+| Bilder (D1–D3) | `ImageApiTests` | `product-list.spec.ts` (Platzhalter) |
+| Sprint 1 | `ProductApiTests`, `CategoryApiTests`, `StockStatusTests` | `format.spec.ts`, `errors.spec.ts` |
+
 ## Lokale Entwicklung (mit Hot Reload)
 
 ```bash
-docker-compose up -d db                         # nur die Datenbank starten …
+docker compose up -d db                         # nur die Datenbank starten …
 ```
 
 … dann in `docker-compose.yml` beim Service `db` vorübergehend `ports: ["3306:3306"]` ergänzen
@@ -108,19 +173,24 @@ cd frontend && npm start                        # http://localhost:4200
 ## Projektstruktur
 
 ```
-docker-compose.yml        db + backend + frontend
-docs/anforderungen/       User Stories mit Akzeptanzkriterien (Skill "anforderung")
-docs/adr/                 Architekturentscheidungen (Skill "adr")
+docker-compose.yml        db + backend + frontend, Volumes db-data und images
+http/api.http             alle Endpunkte zum Ausprobieren (N2)
+docs/anforderungen/       User Stories mit Akzeptanzkriterien
+docs/adr/                 Architekturentscheidungen
 backend/src/main/java/de/hsaa/shop/
   product/                Produkt: Entity, Repository, Service, Controller, DTOs, StockStatus
-  category/               Kategorie: Entity, Repository, Service, Controller, DTOs
-  common/                 Fehlerbehandlung (Problem Details), Healthcheck
+  category/               Kategorie
+  account/                Konten, Rollen, Anmeldung, Admin beim ersten Start
+  security/               Spring Security: wer darf was (A2)
+  order/                  Bestellungen, Status, Bestandsprüfung
+  image/                  Bilder hochladen und ausliefern
+  common/                 Fehlerbehandlung (Problem Details), Seiten, Healthcheck
   sampledata/             Beispieldaten beim ersten Start
 frontend/src/app/
   api/                    HTTP-Services und Datentypen
-  shared/                 Formatierung, Fehlermeldungen, Platzhalterbild, Dialoge
-  pages/                  product-list, product-detail, admin, not-found
-frontend/public/images/   Produktbilder (SVG) und Platzhalter
+  shared/                 Warenkorb, Guards, Formatierung, Fehlermeldungen, Platzhalterbild, Dialoge
+  pages/                  product-list, product-detail, cart, account, orders, admin, …
+frontend/public/images/   Beispiel-Produktbilder (SVG) und Platzhalter
 ```
 
 ## Firmennetz mit TLS-Interception

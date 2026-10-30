@@ -46,3 +46,56 @@ export interface FieldMessage {
   field: string;
   message: string;
 }
+
+// ---- Sprint 2: Konto, Warenkorb, Bestellungen ----
+
+/** Sortierungen der Produktliste, gleiche Werte wie der Parameter "sort" im Backend. */
+export type ProductSort = 'name' | 'price-asc' | 'price-desc' | 'newest';
+
+export type Role = 'CUSTOMER' | 'ADMIN';
+
+/** Angemeldeter Nutzer (UserResponse). Das Passwort verlässt das Backend nie. */
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+  role: Role;
+}
+
+export type OrderStatus = 'RECEIVED' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
+
+export interface OrderLine {
+  productId: number;
+  productName: string;
+  /** Preis zum Zeitpunkt der Bestellung, vom Server festgelegt (B3). */
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface Order {
+  id: number;
+  createdAt: string;
+  updatedAt: string;
+  status: OrderStatus;
+  total: number;
+  itemCount: number;
+  customer: { id: number; name: string; email: string };
+  lines: OrderLine[];
+  /** Was der aktuelle Nutzer als Nächstes setzen darf; rechnet das Backend aus. */
+  allowedNextStatuses: OrderStatus[];
+}
+
+/** Was beim Bestellen geschickt wird: nur Produkt und Menge, nie ein Preis (B3). */
+export interface OrderItem {
+  productId: number;
+  quantity: number;
+}
+
+/** Teil der 409-Antwort, wenn etwas nicht (mehr) genug auf Lager ist (B2). */
+export interface StockProblem {
+  productId: number;
+  productName: string;
+  requested: number;
+  available: number;
+}

@@ -2,7 +2,7 @@ name: hyrox-shop
 
 services:
   # MariaDB (ADR-0001). Die Daten liegen im Volume "db-data" und überleben Neustarts.
-  # Zurücksetzen inkl. Beispieldaten: docker-compose down -v
+  # Zurücksetzen inkl. Beispieldaten, Konten und Bildern: docker compose down -v
   db:
     image: mariadb:11.4
     restart: unless-stopped
@@ -10,7 +10,8 @@ services:
       MARIADB_DATABASE: shop
       MARIADB_USER: shop
       MARIADB_PASSWORD: shop
-      MARIADB_ROOT_PASSWORD: root
+      # Kein festes root-Passwort im Repo (Q3, ADR-0008): MariaDB würfelt eins, das niemand braucht.
+      MARIADB_RANDOM_ROOT_PASSWORD: "1"
     command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
     volumes:
       - db-data:/var/lib/mysql
@@ -31,6 +32,14 @@ services:
       DB_URL: jdbc:mariadb://db:3306/shop
       DB_USER: shop
       DB_PASSWORD: shop
+      IMAGES_DIR: /data/images
+      # Admin-Passwort (ADR-0008): leer lassen → zufälliges Passwort steht beim ersten Start im Log.
+      # Eigenes setzen: in einer .env-Datei (nicht im Repo) ADMIN_PASSWORD=... eintragen.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@hyrox-shop.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      # Hochgeladene Produktbilder überleben Neustarts (ADR-0007).
+      - images:/data/images
     depends_on:
       db:
         # Das Backend braucht beim Start die Datenbank (Tabellen anlegen, Beispieldaten).
@@ -57,3 +66,4 @@ services:
 
 volumes:
   db-data:
+  images:

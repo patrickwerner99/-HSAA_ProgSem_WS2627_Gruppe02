@@ -1,0 +1,59 @@
+<h1>Meine Bestellungen</h1>
+
+<div class="pills" role="group" aria-label="Nach Status filtern">
+  <button
+    type="button"
+    class="pill"
+    [class.selected]="status() === null"
+    [attr.aria-pressed]="status() === null"
+    (click)="filter(null)"
+  >
+    Alle
+  </button>
+  @for (value of statuses; track value) {
+    <button
+      type="button"
+      class="pill"
+      [class.selected]="status() === value"
+      [attr.aria-pressed]="status() === value"
+      (click)="filter(value)"
+    >
+      {{ labels[value] }}
+    </button>
+  }
+</div>
+
+@if (loadError(); as message) {
+  <div class="state-message error" role="alert">
+    <p>Die Bestellungen konnten nicht geladen werden.</p>
+    <p class="hint">{{ message }}</p>
+    <button mat-flat-button type="button" (click)="load()">Erneut versuchen</button>
+  </div>
+} @else if (loading()) {
+  <div class="state-message" aria-live="polite"><mat-spinner diameter="36" /></div>
+} @else if (items().length === 0) {
+  <div class="state-message">
+    @if (status()) {
+      <p>Keine Bestellungen mit Status „{{ labels[status()!] }}“.</p>
+      <button mat-stroked-button type="button" (click)="filter(null)">Alle anzeigen</button>
+    } @else {
+      <p>Du hast noch nichts bestellt.</p>
+      <a mat-flat-button routerLink="/">Zum Sortiment</a>
+    }
+  </div>
+} @else {
+  <ul class="order-list">
+    @for (order of items(); track order.id) {
+      <li>
+        <a class="order-card" [routerLink]="['/bestellungen', order.id]">
+          <span class="nr">Bestellung #{{ order.id }}</span>
+          <span class="date">{{ order.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</span>
+          <span class="count">{{ order.itemCount }} Artikel</span>
+          <strong class="sum">{{ order.total | currency }}</strong>
+          <app-status-chip [status]="order.status" />
+        </a>
+      </li>
+    }
+  </ul>
+  <app-pager [page]="page()" [totalItems]="total()" [size]="pageSize" (go)="go($event)" />
+}

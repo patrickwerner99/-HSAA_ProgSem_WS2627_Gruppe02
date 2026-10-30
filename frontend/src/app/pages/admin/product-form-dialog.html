@@ -45,17 +45,49 @@
       <mat-error>{{ messageFor('description', form.controls.description) }}</mat-error>
     </mat-form-field>
 
-    <div class="row image-row">
-      <mat-form-field appearance="outline" subscriptSizing="dynamic">
-        <mat-label>Bild-Adresse (optional)</mat-label>
-        <input matInput formControlName="imageUrl" placeholder="https://… oder /images/…" />
-        <mat-hint>Leer lassen zeigt ein Platzhalterbild.</mat-hint>
-        <mat-error>{{ messageFor('imageUrl', form.controls.imageUrl) }}</mat-error>
-      </mat-form-field>
-      @if (preview(); as url) {
-        <img class="preview" [src]="url" alt="Vorschau des Produktbilds" appFallbackImage />
+    <section class="image-block" aria-labelledby="image-title">
+      <h3 id="image-title">Produktbild</h3>
+      <div class="image-row">
+        <img
+          class="preview"
+          [src]="shownImage() || '/images/placeholder.svg'"
+          alt="Vorschau des Produktbilds"
+          appFallbackImage
+        />
+        <div class="image-actions">
+          <input
+            #fileInput
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            hidden
+            (change)="chooseFile(fileInput)"
+          />
+          <button mat-stroked-button type="button" (click)="fileInput.click()">
+            Bild hochladen…
+          </button>
+          @if (shownImage()) {
+            <button mat-button type="button" (click)="removeImage()">Bild entfernen</button>
+          }
+          @if (file(); as chosen) {
+            <span class="file-name">{{ chosen.name }} – wird beim Speichern hochgeladen</span>
+          }
+          @if (fileError(); as message) {
+            <span class="file-error" role="alert">{{ message }}</span>
+          }
+          <span class="hint"
+            >PNG, JPG, WebP oder GIF, höchstens 5 MB. Ohne Bild erscheint ein Platzhalter.</span
+          >
+        </div>
+      </div>
+
+      @if (!file()) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>oder Bild-Adresse (optional)</mat-label>
+          <input matInput formControlName="imageUrl" placeholder="https://…" />
+          <mat-error>{{ messageFor('imageUrl', form.controls.imageUrl) }}</mat-error>
+        </mat-form-field>
       }
-    </div>
+    </section>
   </mat-dialog-content>
 
   <mat-dialog-actions align="end">

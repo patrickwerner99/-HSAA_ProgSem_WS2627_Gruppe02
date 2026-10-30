@@ -1,0 +1,105 @@
+.back {
+  display: inline-block;
+  margin-bottom: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.back:hover {
+  text-decoration: underline;
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.head h1 {
+  margin: 0;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  margin: 0 0 1.25rem;
+}
+
+.facts dt {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--shop-muted);
+}
+
+.facts dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--shop-border);
+  border-radius: 0.75rem;
+  background: var(--shop-card);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--shop-border);
+  text-align: left;
+}
+
+thead th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--shop-muted);
+}
+
+tfoot th,
+tfoot td {
+  border-bottom: 0;
+  font-size: 1.1rem;
+}
+
+.num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.total {
+  font-weight: 800;
+}
+
+.actions {
+  margin-top: 1.5rem;
+}
+
+.actions h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.hint {
+  color: var(--shop-muted);
+}
+
+.danger {
+  color: var(--stock-out);
+}

@@ -15,12 +15,12 @@ domain rules, the conventions and the operational gotchas that are not obvious f
 
 | Task | Command |
 | --- | --- |
-| Full stack | `docker-compose up -d --build` → <http://localhost> |
+| Full stack | `docker compose up -d --build` → <http://localhost> |
 | Backend on host | `cd backend && ./mvnw spring-boot:run` → <http://localhost:8080> (needs a reachable MariaDB) |
 | Frontend on host | `cd frontend && npm start` → <http://localhost:4200> |
 | Follow logs | `docker-compose logs -f` |
-| Stop | `docker-compose down` |
-| Reset data | `docker-compose down -v` |
+| Stop | `docker compose down` |
+| Reset data | `docker compose down -v` |
 
 ## Verify before finishing
 
@@ -29,8 +29,8 @@ cd backend  && ./mvnw test                    # JUnit + MockMvc against H2, need
 cd frontend && npm install && npx ng test     # vitest via `ng test`
 ```
 
-`docker-compose up --build` already runs both suites — treat a successful
-`docker-compose up -d --build` plus a green `docker-compose ps` as the final
+`docker compose up --build` already runs both suites — treat a successful
+`docker compose up -d --build` plus a green `docker-compose ps` as the final
 check for a change that touches any container.
 
 No linter is configured. `frontend/.prettierrc` exists; format with

@@ -3,8 +3,8 @@ package de.hsaa.shop.product;
 /** Gemeinsame Regeln und Meldungen für {@link ProductRequest} und {@link ProductPatch}. */
 final class ProductRules {
 
-	/** Leer, eine http(s)-Adresse oder ein mitgeliefertes Bild unter /images/. */
-	static final String IMAGE_URL_PATTERN = "^(https?://\\S+|/images/[A-Za-z0-9._-]+)?$";
+	/** Leer, eine http(s)-Adresse, ein mitgeliefertes Bild (/images/…) oder ein hochgeladenes (/api/images/…). */
+	static final String IMAGE_URL_PATTERN = "^(https?://\\S+|/images/[A-Za-z0-9._-]+|/api/images/[A-Za-z0-9._-]+)?$";
 
 	/** Mindestens ein Zeichen, das kein Leerzeichen ist. */
 	static final String NOT_BLANK_PATTERN = "(?s).*\\S.*";

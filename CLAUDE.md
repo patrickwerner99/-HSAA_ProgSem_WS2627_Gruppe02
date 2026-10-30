@@ -7,7 +7,7 @@ in `AGENTS.md`; Claude Code reads it directly.
 
 The E-Commerce-Hub of Gruppe 02 (Projektseminar Programmierung, HS Aalen):
 a supplement shop for Hyrox athletes. Angular SPA + Spring Boot REST API + MariaDB,
-wired together by `docker-compose`. The domain language (UI texts, docs, error
+wired together by `docker compose`. The domain language (UI texts, docs, error
 messages) is **German**; code identifiers are English.
 
 | | |
@@ -15,6 +15,8 @@ messages) is **German**; code identifiers are English.
 | Frontend | Angular 22 + Angular Material → static files, served by nginx:80 |
 | Backend | Spring Boot 4.1.1, Java 21, REST under `/api` |
 | Database | MariaDB 11.4 (container `db`, volume `db-data`), see ADR-0001 |
+| Auth | Spring Security, session cookie (`SameSite=Strict`), roles CUSTOMER/ADMIN, see ADR-0004 |
+| Uploads | product images in volume `images` → `/data/images`, served at `/api/images/{uuid}.ext`, ADR-0007 |
 | Tests | JUnit + MockMvc against H2 (backend), Vitest via `ng test` (frontend) |
 
 ## Architecture
@@ -30,8 +32,11 @@ browser ──▶ nginx :80 ──▶ index.html + hashed JS/CSS + /images/*.svg
 - `backend` and `db` are **not published** to the host. That is deliberate.
 - Startup order is enforced by healthchecks: `db` (healthcheck.sh) → `backend`
   (`/api/health`) → `frontend`. Do not add sleeps or restart loops.
-- Schema is created by Hibernate (`ddl-auto=update`) in Sprint 1. Sample data is
+- Schema is created by Hibernate (`ddl-auto=update`). Sample data is
   inserted by `SampleDataLoader` only when there are no categories yet.
+- `AdminAccountInitializer` creates the single admin on first start. Password from
+  `ADMIN_PASSWORD`, otherwise random and logged once. **Never put a real password in the repo**
+  (Q3, ADR-0008); tests set `shop.admin.password` in `src/test/resources/application.properties`.
 
 ## Domain rules (see docs/anforderungen/)
 
@@ -43,16 +48,31 @@ browser ──▶ nginx :80 ──▶ index.html + hashed JS/CSS + /images/*.svg
 - A category with products cannot be deleted (409). Category names are unique, case-insensitive.
 - Validation is binding in the backend; the frontend mirrors the rules with the same
   German messages (ADR-0003). Errors are Problem Details with an `errors` list per field.
+- **Access (A2):** reading products/categories/images is public; every write on them is ADMIN
+  (`SecurityConfig`). Orders need a login; `OrderService` additionally hides other customers'
+  orders (404, not 403). Frontend guards are convenience only — always enforce in the backend.
+- **Cart (ADR-0005):** lives in the browser (localStorage), only `{productId, quantity}`.
+  The backend ignores any client price; `OrderService.place` locks products
+  (`findAllByIdForUpdate`, ADR-0006), checks stock for all lines, then decrements (all or nothing → 409 with `items`).
+- **Order status:** RECEIVED → PROCESSING → SHIPPED → DELIVERED, CANCELLED from RECEIVED/PROCESSING
+  (restores stock). Transitions live only in `OrderStatus.next()`; the API returns
+  `allowedNextStatuses` per viewer and the UI just renders them. Customers may only cancel while RECEIVED.
+- **URLs = state (C2):** every view's filters are query params (`q`, `kategorie`, `sort`,
+  `verfuegbar`, `status`, `seite`); admin tabs are `/pflege/:reiter`. Invalid values fall back to defaults.
+- Every endpoint must appear in `http/api.http` with a success and an error case (N2).
 
 ## Conventions
 
-**Backend** (`de.hsaa.shop`, packages by feature: `product`, `category`, `common`, `sampledata`)
+**Backend** (`de.hsaa.shop`, packages by feature: `product`, `category`, `account`, `security`, `order`, `image`, `common`, `sampledata`)
 
 - Entities are plain JPA classes; API in/out are Java `record`s (`ProductRequest`,
   `ProductPatch`, `ProductResponse`, …). No Lombok. Never return an entity from a controller.
 - Controllers stay thin; business rules live in `@Service` classes with `@Transactional`.
-- Throw `NotFoundException` (404), `ConflictException` (409) or `InvalidFieldException`
-  (400 + field); `GlobalExceptionHandler` turns them into Problem Details.
+- Throw `NotFoundException` (404), `ConflictException` (409), `InvalidFieldException`
+  (400 + field), `UnauthorizedException` (401) or `ForbiddenException` (403);
+  `GlobalExceptionHandler` turns them into Problem Details.
+- Who is calling: inject `CurrentUser` (`require()`, `isAdmin()`), never read the session directly.
+- MockMvc tests: `.apply(springSecurity())` and `.with(user("…").roles("ADMIN"))` for writes.
 - User-facing messages are German, complete sentences, no technical details.
 
 **Frontend**
@@ -68,7 +88,7 @@ browser ──▶ nginx :80 ──▶ index.html + hashed JS/CSS + /images/*.svg
 **Docker**
 
 - Images are built the production way, no hot reload in containers.
-- Reset data: `docker-compose down -v`.
+- Reset data (DB, accounts, orders, uploaded images, admin password): `docker compose down -v`.
 
 ## Gotchas
 

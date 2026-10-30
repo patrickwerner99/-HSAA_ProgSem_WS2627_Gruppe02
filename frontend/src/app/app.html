@@ -1,9 +1,34 @@
 <header class="topbar">
   <a class="brand" routerLink="/">HYROX<span>SHOP</span></a>
   <!-- Links stehen oben, weil endloses Scrollen einen Footer unerreichbar macht (0001). -->
-  <nav>
+  <nav aria-label="Hauptmenü">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Shop</a>
-    <a routerLink="/pflege" routerLinkActive="active">Pflege</a>
+    @if (auth.isAdmin()) {
+      <a routerLink="/pflege" routerLinkActive="active">Pflege</a>
+    }
+    @if (auth.loggedIn()) {
+      <a routerLink="/bestellungen" routerLinkActive="active">Meine Bestellungen</a>
+    }
+    <a routerLink="/warenkorb" routerLinkActive="active" class="cart">
+      Warenkorb
+      @if (cart.count() > 0) {
+        <span class="cart-count" [attr.aria-label]="cart.count() + ' Artikel'">{{
+          cart.count()
+        }}</span>
+      }
+    </a>
+    @if (auth.user(); as user) {
+      <button
+        type="button"
+        class="account"
+        (click)="logout()"
+        [title]="'Angemeldet als ' + user.email"
+      >
+        Abmelden <span class="who">({{ user.name }})</span>
+      </button>
+    } @else {
+      <a routerLink="/anmelden" routerLinkActive="active">Anmelden</a>
+    }
   </nav>
 </header>
 

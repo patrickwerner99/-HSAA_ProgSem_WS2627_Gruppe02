@@ -43,4 +43,9 @@ describe('stockView', () => {
     expect(stockView('SOLD_OUT').label).toBe('Ausverkauft');
     expect(stockView('SOLD_OUT').cssClass).toBe('stock-out');
   });
+
+  it('nennt bei wenig Bestand die genaue Stückzahl', () => {
+    expect(stockView('LOW_STOCK', 3).label).toBe('Nur noch 3 verfügbar');
+    expect(stockView('IN_STOCK', 40).label).toBe('Auf Lager');
+  });
 });
