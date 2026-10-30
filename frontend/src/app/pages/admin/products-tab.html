@@ -1,0 +1,84 @@
+<div class="toolbar">
+  <p class="hint">
+    Preis und Bestand kannst du direkt in der Tabelle ändern (Enter oder Feld verlassen speichert).
+  </p>
+  <button
+    mat-flat-button
+    type="button"
+    (click)="openForm(null)"
+    [disabled]="categories().length === 0"
+  >
+    + Neues Produkt
+  </button>
+</div>
+@if (categories().length === 0) {
+  <p class="hint">Lege zuerst eine Kategorie an, dann kannst du Produkte anlegen.</p>
+}
+
+@if (products().length === 0) {
+  <div class="state-message"><p>Noch keine Produkte vorhanden.</p></div>
+} @else {
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col"><span class="visually-hidden">Bild</span></th>
+          <th scope="col">Name</th>
+          <th scope="col">Kategorie</th>
+          <th scope="col" class="num">Preis (€)</th>
+          <th scope="col" class="num">Bestand</th>
+          <th scope="col"><span class="visually-hidden">Aktionen</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (product of products(); track product.id) {
+          <tr>
+            <td>
+              <img
+                class="thumb"
+                [src]="product.imageUrl || placeholder"
+                alt=""
+                appFallbackImage
+                loading="lazy"
+              />
+            </td>
+            <td class="name">{{ product.name }}</td>
+            <td>{{ product.categoryName }}</td>
+            <td class="num">
+              <input
+                class="cell-input"
+                inputmode="decimal"
+                [value]="priceForInput(product.price)"
+                [attr.aria-label]="'Preis von ' + product.name + ' in Euro'"
+                (keydown.enter)="$any($event.target).blur()"
+                (blur)="savePrice(product, $any($event.target))"
+              />
+            </td>
+            <td class="num">
+              <input
+                class="cell-input"
+                [class.sold-out]="product.stock === 0"
+                inputmode="numeric"
+                [value]="product.stock"
+                [attr.aria-label]="'Bestand von ' + product.name"
+                (keydown.enter)="$any($event.target).blur()"
+                (blur)="saveStock(product, $any($event.target))"
+              />
+              @if (product.stock === 0) {
+                <span class="sold-out-label">ausverkauft</span>
+              }
+            </td>
+            <td class="actions">
+              <button mat-stroked-button type="button" (click)="openForm(product)">
+                Bearbeiten
+              </button>
+              <button mat-button type="button" class="delete" (click)="confirmDelete(product)">
+                Löschen
+              </button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

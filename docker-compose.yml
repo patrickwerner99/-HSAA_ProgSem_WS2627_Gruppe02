@@ -1,15 +1,43 @@
-name: hello-angular-spring
+name: hyrox-shop
 
 services:
+  # MariaDB (ADR-0001). Die Daten liegen im Volume "db-data" und überleben Neustarts.
+  # Zurücksetzen inkl. Beispieldaten: docker-compose down -v
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: shop
+      MARIADB_USER: shop
+      MARIADB_PASSWORD: shop
+      MARIADB_ROOT_PASSWORD: root
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      # Das MariaDB-Image bringt dieses Skript mit: bereit, wenn Verbindungen angenommen werden.
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
   backend:
     build:
       context: ./backend
-    image: hello-angular-spring/backend:local
+    image: hyrox-shop/backend:local
     restart: unless-stopped
+    environment:
+      DB_URL: jdbc:mariadb://db:3306/shop
+      DB_USER: shop
+      DB_PASSWORD: shop
+    depends_on:
+      db:
+        # Das Backend braucht beim Start die Datenbank (Tabellen anlegen, Beispieldaten).
+        condition: service_healthy
     healthcheck:
-      # The JRE-alpine base ships busybox wget, so this checks the real endpoint
-      # instead of adding an actuator dependency just to answer "am I up?".
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/hello > /dev/null || exit 1"]
+      # Das JRE-alpine-Image hat busybox wget, damit wird der echte Endpunkt geprüft.
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health > /dev/null || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -18,11 +46,14 @@ services:
   frontend:
     build:
       context: ./frontend
-    image: hello-angular-spring/frontend:local
+    image: hyrox-shop/frontend:local
     restart: unless-stopped
     ports:
       - "80:80"
     depends_on:
       backend:
-        # nginx resolves "backend" at startup, so it must not boot first.
+        # nginx löst "backend" beim Start auf, darf also nicht zuerst hochfahren.
         condition: service_healthy
+
+volumes:
+  db-data:

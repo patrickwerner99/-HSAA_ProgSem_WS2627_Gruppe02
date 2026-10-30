@@ -40,8 +40,8 @@ RUN addgroup -S spring && adduser -S spring -G spring \
     && chown -R spring:spring /app
 USER spring:spring
 
-COPY --from=build /workspace/target/hello-*.jar /app/hello.jar
+COPY --from=build /workspace/target/shop-*.jar /app/shop.jar
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "/app/hello.jar"]
+ENTRYPOINT ["java", "-jar", "/app/shop.jar"]

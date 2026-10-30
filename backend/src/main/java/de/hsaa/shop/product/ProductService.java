@@ -1,0 +1,120 @@
+package de.hsaa.shop.product;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import de.hsaa.shop.category.Category;
+import de.hsaa.shop.category.CategoryRepository;
+import de.hsaa.shop.common.InvalidFieldException;
+import de.hsaa.shop.common.NotFoundException;
+
+/** Geschäftslogik für Produkte: Suche mit Nachladen, Anlegen, Ändern (ganz oder einzeln), Löschen. */
+@Service
+@Transactional
+public class ProductService {
+
+	/** Eine Ladung beim endlosen Scrollen (ADR-0002). */
+	public static final int DEFAULT_PAGE_SIZE = 12;
+	static final int MAX_PAGE_SIZE = 50;
+
+	private final ProductRepository products;
+	private final CategoryRepository categories;
+
+	public ProductService(ProductRepository products, CategoryRepository categories) {
+		this.products = products;
+		this.categories = categories;
+	}
+
+	@Transactional(readOnly = true)
+	public PageResponse<ProductResponse> search(String query, Long categoryId, int page, int size) {
+		String text = query == null ? "" : query.trim();
+		int safePage = Math.max(page, 0);
+		int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+		Pageable pageable = PageRequest.of(safePage, safeSize, Sort.by("name").ascending().and(Sort.by("id")));
+
+		Page<Product> result = categoryId == null
+				? products.findByNameContainingIgnoreCase(text, pageable)
+				: products.findByCategoryIdAndNameContainingIgnoreCase(categoryId, text, pageable);
+
+		return new PageResponse<>(
+				result.getContent().stream().map(ProductResponse::from).toList(),
+				result.getNumber(),
+				result.getSize(),
+				result.getTotalElements(),
+				result.isLast());
+	}
+
+	@Transactional(readOnly = true)
+	public ProductResponse findById(Long id) {
+		return ProductResponse.from(load(id));
+	}
+
+	public ProductResponse create(ProductRequest request) {
+		Product product = new Product(
+				request.name().trim(),
+				emptyToNull(request.description()),
+				request.price(),
+				request.stock().intValueExact(),
+				emptyToNull(request.imageUrl()),
+				loadCategory(request.categoryId()));
+		return ProductResponse.from(products.save(product));
+	}
+
+	/** Ganzes Produkt ändern: alle Felder werden überschrieben. */
+	public ProductResponse replace(Long id, ProductRequest request) {
+		Product product = load(id);
+		product.setName(request.name().trim());
+		product.setDescription(emptyToNull(request.description()));
+		product.setPrice(request.price());
+		product.setStock(request.stock().intValueExact());
+		product.setImageUrl(emptyToNull(request.imageUrl()));
+		product.setCategory(loadCategory(request.categoryId()));
+		return ProductResponse.from(product);
+	}
+
+	/** Einzelne Felder ändern: nur was mitgeschickt wurde, wird überschrieben. */
+	public ProductResponse patch(Long id, ProductPatch patch) {
+		Product product = load(id);
+		if (patch.name() != null) {
+			product.setName(patch.name().trim());
+		}
+		if (patch.description() != null) {
+			product.setDescription(emptyToNull(patch.description()));
+		}
+		if (patch.price() != null) {
+			product.setPrice(patch.price());
+		}
+		if (patch.stock() != null) {
+			product.setStock(patch.stock().intValueExact());
+		}
+		if (patch.imageUrl() != null) {
+			product.setImageUrl(emptyToNull(patch.imageUrl()));
+		}
+		if (patch.categoryId() != null) {
+			product.setCategory(loadCategory(patch.categoryId()));
+		}
+		return ProductResponse.from(product);
+	}
+
+	public void delete(Long id) {
+		products.delete(load(id));
+	}
+
+	private Product load(Long id) {
+		return products.findById(id)
+				.orElseThrow(() -> new NotFoundException("Dieses Produkt gibt es nicht (mehr)."));
+	}
+
+	private Category loadCategory(Long categoryId) {
+		return categories.findById(categoryId)
+				.orElseThrow(() -> new InvalidFieldException("categoryId", "Diese Kategorie gibt es nicht (mehr)."));
+	}
+
+	private static String emptyToNull(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
+	}
+}

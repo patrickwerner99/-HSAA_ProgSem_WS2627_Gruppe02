@@ -1,0 +1,67 @@
+<h2 mat-dialog-title>{{ isNew ? 'Neues Produkt' : 'Produkt bearbeiten' }}</h2>
+
+<form [formGroup]="form" (ngSubmit)="save()" novalidate>
+  <mat-dialog-content class="fields">
+    @if (formError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Name</mat-label>
+      <input matInput formControlName="name" required />
+      <mat-error>{{ messageFor('name', form.controls.name) }}</mat-error>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Kategorie</mat-label>
+      <mat-select formControlName="categoryId" required>
+        @for (category of data.categories; track category.id) {
+          <mat-option [value]="category.id">{{ category.name }}</mat-option>
+        }
+      </mat-select>
+      <mat-error>{{ messageFor('categoryId', form.controls.categoryId) }}</mat-error>
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Preis</mat-label>
+        <input matInput formControlName="price" inputmode="decimal" placeholder="34,90" required />
+        <span matTextSuffix>&nbsp;€</span>
+        <mat-error>{{ messageFor('price', form.controls.price) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bestand</mat-label>
+        <input matInput formControlName="stock" inputmode="numeric" placeholder="0" required />
+        <span matTextSuffix>&nbsp;Stück</span>
+        <mat-error>{{ messageFor('stock', form.controls.stock) }}</mat-error>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Beschreibung (optional)</mat-label>
+      <textarea matInput formControlName="description" rows="3"></textarea>
+      <mat-hint align="end">{{ form.controls.description.value.length }} / 1000</mat-hint>
+      <mat-error>{{ messageFor('description', form.controls.description) }}</mat-error>
+    </mat-form-field>
+
+    <div class="row image-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Bild-Adresse (optional)</mat-label>
+        <input matInput formControlName="imageUrl" placeholder="https://… oder /images/…" />
+        <mat-hint>Leer lassen zeigt ein Platzhalterbild.</mat-hint>
+        <mat-error>{{ messageFor('imageUrl', form.controls.imageUrl) }}</mat-error>
+      </mat-form-field>
+      @if (preview(); as url) {
+        <img class="preview" [src]="url" alt="Vorschau des Produktbilds" appFallbackImage />
+      }
+    </div>
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close [disabled]="saving()">Abbrechen</button>
+    <button mat-flat-button type="submit" [disabled]="form.invalid || saving()">
+      {{ saving() ? 'Speichert…' : 'Speichern' }}
+    </button>
+  </mat-dialog-actions>
+</form>

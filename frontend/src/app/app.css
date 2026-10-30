@@ -1,53 +1,49 @@
-.page {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 4rem 1.5rem;
-  text-align: center;
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--shop-dark);
+  color: var(--shop-light);
 }
 
-h1 {
-  margin: 0 0 2rem;
-  font-size: 1.5rem;
+.brand {
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  color: var(--shop-light);
+  text-decoration: none;
+}
+
+.brand span {
+  color: var(--shop-accent);
+  margin-left: 0.25rem;
+}
+
+nav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+nav a {
+  padding: 0.5rem 0.875rem;
+  border-radius: 999px;
+  color: var(--shop-light);
+  text-decoration: none;
   font-weight: 600;
-  color: #6b7280;
 }
 
-.greeting {
-  margin: 0;
-  font-size: 2.5rem;
-  font-weight: 700;
-  color: #111827;
+nav a.active {
+  background: var(--shop-accent);
+  color: var(--shop-dark);
 }
 
-.meta {
-  margin: 0.75rem 0 0;
-  font-size: 0.875rem;
-  color: #9ca3af;
-}
-
-.status {
-  margin: 0;
-  font-size: 1.125rem;
-  color: #6b7280;
-}
-
-.status.error {
-  color: #b91c1c;
-}
-
-button {
-  margin-top: 1.5rem;
-  padding: 0.5rem 1rem;
-  font: inherit;
-  font-size: 0.875rem;
-  color: #ffffff;
-  background: #2563eb;
-  border: 0;
-  border-radius: 0.375rem;
-  cursor: pointer;
-}
-
-button:hover {
-  background: #1d4ed8;
+.content {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
 }

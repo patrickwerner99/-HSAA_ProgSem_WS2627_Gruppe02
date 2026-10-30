@@ -1,0 +1,43 @@
+<a class="back" routerLink="/" (click)="back($event)">← Zurück zur Übersicht</a>
+
+@if (loading()) {
+  <div class="state-message" aria-live="polite">
+    <mat-spinner diameter="36" />
+  </div>
+} @else if (notFound()) {
+  <div class="state-message">
+    <p>Dieses Produkt gibt es nicht (mehr).</p>
+    <a mat-flat-button routerLink="/">Zur Produktübersicht</a>
+  </div>
+} @else if (loadError(); as message) {
+  <div class="state-message error" role="alert">
+    <p>Das Produkt konnte nicht geladen werden.</p>
+    <p class="hint">{{ message }}</p>
+    <button mat-flat-button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+} @else if (product(); as product) {
+  <article class="detail">
+    <img
+      class="image"
+      [src]="product.imageUrl || placeholder"
+      [alt]="product.name"
+      appFallbackImage
+    />
+    <div class="info">
+      <span class="category">{{ product.categoryName }}</span>
+      <h1>{{ product.name }}</h1>
+      <p class="price">{{ product.price | currency }}</p>
+
+      @if (stock(); as stock) {
+        <p class="stock {{ stock.cssClass }}">
+          <span class="symbol" aria-hidden="true">{{ stock.symbol }}</span>
+          {{ stock.label }}
+        </p>
+      }
+
+      @if (product.description) {
+        <p class="description">{{ product.description }}</p>
+      }
+    </div>
+  </article>
+}

@@ -1,5 +1,116 @@
+/* Farben im Hyrox-Look, dieselben wie in unserer Präsentation. */
+:root {
+  --shop-dark: #15181c;
+  --shop-light: #f3f1eb;
+  --shop-accent: #f2c230;
+  --shop-muted: #5e636a;
+  --shop-card: #fbfaf6;
+  --shop-border: #ddd9cf;
+  --stock-ok: #1e7b34;
+  --stock-low: #a85a00;
+  --stock-out: #b3261e;
+}
+
+/* Angular Material (prebuilt Theme) auf unsere Farben und Schrift umstellen.
+   Das Theme erwartet "Roboto"; ohne diese Schrift fiele der Browser auf eine Serifenschrift zurück. */
+html {
+  --shop-font: 'Segoe UI', Roboto, Arial, sans-serif;
+  --mat-sys-body-large-font: var(--shop-font);
+  --mat-sys-body-medium-font: var(--shop-font);
+  --mat-sys-body-small-font: var(--shop-font);
+  --mat-sys-display-large-font: var(--shop-font);
+  --mat-sys-display-medium-font: var(--shop-font);
+  --mat-sys-display-small-font: var(--shop-font);
+  --mat-sys-headline-large-font: var(--shop-font);
+  --mat-sys-headline-medium-font: var(--shop-font);
+  --mat-sys-headline-small-font: var(--shop-font);
+  --mat-sys-label-large-font: var(--shop-font);
+  --mat-sys-label-medium-font: var(--shop-font);
+  --mat-sys-label-small-font: var(--shop-font);
+  --mat-sys-title-large-font: var(--shop-font);
+  --mat-sys-title-medium-font: var(--shop-font);
+  --mat-sys-title-small-font: var(--shop-font);
+
+  --mat-sys-primary: var(--shop-dark);
+  --mat-sys-on-primary: var(--shop-light);
+  --mat-sys-surface: var(--shop-card);
+  --mat-sys-surface-container: var(--shop-card);
+  --mat-sys-surface-container-high: #ffffff;
+  --mat-sys-surface-container-low: var(--shop-card);
+  --mat-sys-secondary-container: var(--shop-accent);
+  --mat-sys-on-secondary-container: var(--shop-dark);
+}
+
 html,
 body {
   margin: 0;
-  background: #ffffff;
+  min-height: 100%;
+  background: var(--shop-light);
+  color: var(--shop-dark);
+  font-family: var(--shop-font);
+}
+
+h1 {
+  margin: 0 0 1rem;
+  font-size: 1.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+a {
+  color: inherit;
+}
+
+/* Bestandsstatus: Farbe plus Text plus Symbol, nie Farbe allein (0002). */
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-weight: 600;
+}
+
+.stock-ok {
+  color: var(--stock-ok);
+}
+
+.stock-low {
+  color: var(--stock-low);
+}
+
+.stock-out {
+  color: var(--stock-out);
+}
+
+/* Meldung anstelle von Inhalt, z. B. "Keine Produkte gefunden" (0001, 0005). */
+.state-message {
+  padding: 3rem 1rem;
+  text-align: center;
+  color: var(--shop-muted);
+}
+
+.state-message.error {
+  color: var(--stock-out);
+}
+
+.state-message p {
+  margin: 0 0 1rem;
+  font-size: 1.125rem;
+}
+
+button.danger {
+  --mat-button-filled-container-color: var(--stock-out);
+  --mat-button-filled-label-text-color: #ffffff;
+}
+
+.snack-success {
+  --mat-snack-bar-container-color: var(--stock-ok);
+  --mat-snack-bar-supporting-text-color: #ffffff;
+  --mat-snack-bar-button-color: #ffffff;
+}
+
+.snack-error {
+  --mat-snack-bar-container-color: var(--stock-out);
+  --mat-snack-bar-supporting-text-color: #ffffff;
+  --mat-snack-bar-button-color: #ffffff;
 }

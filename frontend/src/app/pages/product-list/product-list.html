@@ -1,0 +1,104 @@
+<h1>Unser Sortiment</h1>
+
+<section class="filters">
+  <mat-form-field appearance="outline" class="search" subscriptSizing="dynamic">
+    <mat-label>Produkt suchen</mat-label>
+    <input matInput type="search" [formControl]="search" placeholder="z. B. Whey" />
+  </mat-form-field>
+
+  @if (categories().length > 0) {
+    <div class="pills" role="group" aria-label="Nach Kategorie filtern">
+      <button
+        type="button"
+        class="pill"
+        [class.selected]="selectedCategory() === null"
+        [attr.aria-pressed]="selectedCategory() === null"
+        (click)="selectCategory(null)"
+      >
+        Alle
+      </button>
+      @for (category of categories(); track category.id) {
+        <button
+          type="button"
+          class="pill"
+          [class.selected]="selectedCategory() === category.id"
+          [attr.aria-pressed]="selectedCategory() === category.id"
+          (click)="selectCategory(category.id)"
+        >
+          {{ category.name }}
+        </button>
+      }
+    </div>
+  }
+</section>
+
+@if (loadError(); as message) {
+  <div class="state-message error" role="alert">
+    <p>Die Produkte konnten nicht geladen werden.</p>
+    <p class="hint">{{ message }}</p>
+    <button mat-flat-button type="button" (click)="retry()">Erneut versuchen</button>
+  </div>
+} @else {
+  @if (filterActive() && !(loading() && items().length === 0)) {
+    <p class="count" aria-live="polite">
+      {{ total() }} {{ total() === 1 ? 'Produkt' : 'Produkte' }}
+    </p>
+  }
+
+  @if (items().length === 0 && !loading()) {
+    <div class="state-message">
+      @if (filterActive()) {
+        <p>Keine Produkte gefunden.</p>
+        <button mat-stroked-button type="button" (click)="resetFilters()">
+          Filter zurücksetzen
+        </button>
+      } @else {
+        <p>Noch keine Produkte vorhanden.</p>
+      }
+    </div>
+  }
+
+  <div class="grid">
+    @for (product of items(); track product.id) {
+      <a class="card" [routerLink]="['/produkte', product.id]">
+        <div class="image">
+          <img
+            [src]="product.imageUrl || placeholder"
+            [alt]="product.name"
+            appFallbackImage
+            loading="lazy"
+          />
+          @if (product.stockStatus === 'SOLD_OUT') {
+            <span class="badge">Ausverkauft</span>
+          }
+        </div>
+        <div class="info">
+          <span class="category">{{ product.categoryName }}</span>
+          <h2>{{ product.name }}</h2>
+          <span class="price">{{ product.price | currency }}</span>
+        </div>
+      </a>
+    }
+  </div>
+
+  @if (loading()) {
+    <div class="loading" aria-live="polite">
+      <mat-spinner diameter="36" />
+      <span>Produkte werden geladen…</span>
+    </div>
+  }
+
+  @if (moreError(); as message) {
+    <div class="state-message error" role="alert">
+      <p>{{ message }}</p>
+      <button mat-flat-button type="button" (click)="retry()">Erneut versuchen</button>
+    </div>
+  }
+
+  @if (last() && items().length > 0 && !loading()) {
+    <p class="end">Alle Produkte angezeigt</p>
+  }
+}
+
+<!-- Unsichtbarer Marker: kommt er in Sichtweite, werden die nächsten 12 Produkte geladen. -->
+<div #sentinel class="sentinel" aria-hidden="true"></div>
