@@ -38,7 +38,7 @@ Als **Kunde** möchte ich Produkte in einen Warenkorb legen und die Mengen anpas
 * Produkt wurde inzwischen gelöscht → „Dieses Produkt gibt es nicht mehr.“, nur „Entfernen“ möglich.
 * Bestand ist inzwischen kleiner als die Menge → „Nur noch N verfügbar.“ mit Knopf „Auf N reduzieren“; „Bestellen“ ist gesperrt, bis das passt.
 * Ausverkaufte Produkte zeigen keinen „In den Warenkorb“-Knopf.
-* Manipulierte Einträge im localStorage (Text statt Zahl, negative Menge, Preise) werden ignoriert.
+* Manipulierte Einträge im localStorage (negative Menge, erfundene Preise) bringen nichts: Preise werden nie aus dem Browser übernommen, ungültige Mengen lehnt das Backend beim Bestellen mit 400 ab. Ist der Speicher kaputt, startet der Warenkorb leer.
 
 ## Tests
 

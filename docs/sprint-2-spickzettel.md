@@ -94,7 +94,7 @@ Frontend baut daraus Menü und Knöpfe. Unerlaubter Übergang per API → 409.
   (ADR-0002). Bei gleichem Preis entscheidet der Name, sonst würden beim Nachladen Produkte doppelt
   kommen oder fehlen.
 - Alles, was die Ansicht bestimmt, steht in der URL: `/?q=whey&kategorie=2&sort=price-asc&verfuegbar=ja`,
-  `/bestellungen?status=SHIPPED&seite=2`, `/pflege/bestellungen`. Die Seite liest beim Öffnen nur die URL
+  `/bestellungen?seite=2`, `/pflege/bestellungen`. Die Seite liest beim Öffnen nur die URL
   (`route.queryParamMap`), Klicks ändern nur die URL. So sieht ein geteilter Link immer gleich aus.
 - Grenze: Der Warenkorb-**Inhalt** hängt am Browser (ADR-0005).
 

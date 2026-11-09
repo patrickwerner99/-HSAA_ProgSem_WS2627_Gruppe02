@@ -1,7 +1,6 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { map, tap } from 'rxjs';
+import { map } from 'rxjs';
 import { AuthService } from '../api/auth.service';
 
 /**
@@ -41,24 +40,6 @@ export const adminGuard: CanActivateFn = (_route, state) => {
         return router.createUrlTree(['/anmelden'], { queryParams: { zurueck: state.url } });
       }
       return user.role === 'ADMIN' ? true : router.createUrlTree(['/kein-zugriff']);
-    }),
-  );
-};
-
-/** Meldet das Backend 401 (Sitzung abgelaufen), gilt man auch im Browser als abgemeldet. */
-export const sessionInterceptor: HttpInterceptorFn = (request, next) => {
-  const auth = inject(AuthService);
-  return next(request).pipe(
-    tap({
-      error: (error) => {
-        if (
-          error instanceof HttpErrorResponse &&
-          error.status === 401 &&
-          !request.url.startsWith('/api/auth/')
-        ) {
-          auth.sessionEnded();
-        }
-      },
     }),
   );
 };

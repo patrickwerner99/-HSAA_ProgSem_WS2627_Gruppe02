@@ -5,7 +5,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSelectModule } from '@angular/material/select';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { Order, OrderStatus } from '../../api/models';
 import { ORDER_PAGE_SIZE, OrderService } from '../../api/order.service';
 import { userMessage } from '../../shared/errors';
@@ -183,8 +182,6 @@ export class OrdersTab {
   /** ID der Bestellung, deren Status gerade gespeichert wird. */
   protected readonly saving = signal<number | null>(null);
 
-  private request?: Subscription;
-
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((params) => {
       const status = params.get('status');
@@ -219,16 +216,10 @@ export class OrdersTab {
   }
 
   protected load(): void {
-    this.request?.unsubscribe();
     this.loading.set(true);
     this.loadError.set(null);
-    this.request = this.orders.list({ status: this.status(), page: this.page() }).subscribe({
+    this.orders.list({ status: this.status(), page: this.page() }).subscribe({
       next: (result) => {
-        // Seite gibt es nach einem Filterwechsel nicht mehr → auf die letzte vorhandene springen.
-        if (result.items.length === 0 && result.totalItems > 0 && this.page() > 0) {
-          this.go(Math.ceil(result.totalItems / ORDER_PAGE_SIZE) - 1);
-          return;
-        }
         this.items.set(result.items);
         this.total.set(result.totalItems);
         this.loading.set(false);

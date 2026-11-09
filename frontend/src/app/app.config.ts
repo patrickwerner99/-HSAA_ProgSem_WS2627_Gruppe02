@@ -1,5 +1,5 @@
 import { registerLocaleData } from '@angular/common';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient } from '@angular/common/http';
 import localeDe from '@angular/common/locales/de';
 import {
   ApplicationConfig,
@@ -13,7 +13,6 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling } from 
 import { firstValueFrom } from 'rxjs';
 import { AuthService } from './api/auth.service';
 import { routes } from './app.routes';
-import { sessionInterceptor } from './shared/auth';
 
 // Deutsche Formate: Preis "34,90 €", Datum "30.10.2026".
 registerLocaleData(localeDe);
@@ -21,7 +20,7 @@ registerLocaleData(localeDe);
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
-    provideHttpClient(withInterceptors([sessionInterceptor])),
+    provideHttpClient(),
     // Beim Start einmal fragen, ob noch eine Sitzung besteht (Kopfzeile, Guards).
     provideAppInitializer(() => firstValueFrom(inject(AuthService).load())),
     provideRouter(

@@ -21,7 +21,7 @@ Alles, was bestimmt, was man sieht, steht in der URL. Kein Zustand nur im Speich
 | Produktliste mit Suche, Kategorie, Sortierung, Filter | `/?q=whey&kategorie=2&sort=price-desc&verfuegbar=ja` |
 | Produkt | `/produkte/5` |
 | Warenkorb | `/warenkorb` |
-| Meine Bestellungen, gefiltert, Seite 2 | `/bestellungen?status=SHIPPED&seite=2` |
+| Meine Bestellungen, Seite 2 | `/bestellungen?seite=2` |
 | Eine Bestellung | `/bestellungen/12` |
 | Pflege-Reiter | `/pflege/produkte`, `/pflege/kategorien`, `/pflege/bestellungen?status=RECEIVED` |
 
@@ -34,7 +34,7 @@ Als **Nutzer** möchte ich eine Ansicht als Lesezeichen speichern oder verschick
 * Jeder Link aus der Tabelle zeigt nach dem Öffnen in einem neuen Tab dieselbe Ansicht.
 * Zurück/Vor im Browser funktioniert zwischen Ansichten.
 * Braucht eine Ansicht eine Anmeldung, kommt man zuerst zur Anmeldung und danach auf genau diesen Link (`?zurueck=...`).
-* Ungültige Werte in der URL (`sort=quatsch`, `seite=-3`, `status=FOO`) führen zur Standardansicht, nicht zu einer Fehlerseite.
+* Ungültige Werte in der URL (`sort=quatsch`, `seite=-3`, `status=FOO` in der Pflege) führen zur Standardansicht, nicht zu einer Fehlerseite.
 
 ## Grenzen
 

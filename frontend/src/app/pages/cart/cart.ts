@@ -1,10 +1,10 @@
 import { CurrencyPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Router, RouterLink } from '@angular/router';
-import { Observable, Subscription, catchError, forkJoin, map, of, throwError } from 'rxjs';
+import { Observable, catchError, forkJoin, of, throwError } from 'rxjs';
 import { AuthService } from '../../api/auth.service';
 import { Product, StockProblem } from '../../api/models';
 import { OrderService } from '../../api/order.service';
@@ -80,15 +80,12 @@ export class CartPage {
   );
   protected readonly hasProblems = computed(() => this.lines().some((line) => line.problem));
 
-  private request?: Subscription;
-
   constructor() {
     this.reload();
-    inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
   }
 
+  /** Aktuelle Preise und Bestände für alle Produkte im Warenkorb laden. */
   protected reload(): void {
-    this.request?.unsubscribe();
     const ids = this.cart.items().map((item) => item.productId);
     this.loading.set(true);
     this.loadError.set(null);
@@ -97,7 +94,7 @@ export class CartPage {
       this.loading.set(false);
       return;
     }
-    this.request = forkJoin(ids.map((id) => this.loadProduct(id))).subscribe({
+    forkJoin(ids.map((id) => this.loadProduct(id))).subscribe({
       next: (list) => {
         this.loaded.set(new Map(ids.map((id, index) => [id, list[index]])));
         this.loading.set(false);
@@ -165,14 +162,15 @@ export class CartPage {
 
   /** 404 = Produkt wurde gelöscht → null; andere Fehler brechen das Laden ab. */
   private loadProduct(id: number): Observable<Product | null> {
-    return this.products.get(id).pipe(
-      map((product): Product | null => product),
-      catchError((error) =>
-        error instanceof HttpErrorResponse && error.status === 404
-          ? of(null)
-          : throwError(() => error),
-      ),
-    );
+    return this.products
+      .get(id)
+      .pipe(
+        catchError((error) =>
+          error instanceof HttpErrorResponse && error.status === 404
+            ? of(null)
+            : throwError(() => error),
+        ),
+      );
   }
 }
 

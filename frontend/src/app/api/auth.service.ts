@@ -56,9 +56,4 @@ export class AuthService {
       tap(() => this.state.set(null)),
     );
   }
-
-  /** Sitzung abgelaufen (Backend meldet 401). */
-  sessionEnded(): void {
-    this.state.set(null);
-  }
 }

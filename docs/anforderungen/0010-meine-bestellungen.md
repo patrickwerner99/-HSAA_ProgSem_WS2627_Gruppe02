@@ -14,7 +14,7 @@ adr: "keine"
 
 ## UI/UX-Überlegung
 
-* `/bestellungen`: Liste der eigenen Bestellungen, neueste zuerst (Nr., Datum, Anzahl Artikel, Summe, Status). Filter nach Status und Seite stehen in der URL.
+* `/bestellungen`: Liste der eigenen Bestellungen, neueste zuerst (Nr., Datum, Anzahl Artikel, Summe, Status), 10 pro Seite; die Seite steht in der URL (`?seite=2`).
 * `/bestellungen/{id}`: Positionen, Gesamtsumme, Status. Solange „Eingegangen“, gibt es „Bestellung stornieren“ (mit Sicherheitsabfrage).
 * **Entscheidung und Begründung:** Stornieren nur bis zur Bearbeitung, danach ist die Ware evtl. schon gepackt. Welche Aktion möglich ist, sagt das Backend (`allowedNextStatuses`), das Frontend zeigt nur an.
 

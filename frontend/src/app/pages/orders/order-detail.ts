@@ -1,11 +1,10 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { Subscription } from 'rxjs';
 import { AuthService } from '../../api/auth.service';
 import { Order, OrderStatus } from '../../api/models';
 import { OrderService } from '../../api/order.service';
@@ -56,11 +55,8 @@ export class OrderDetailPage {
     this.isAdmin() ? '/pflege/bestellungen' : '/bestellungen',
   );
 
-  private request?: Subscription;
-
   constructor() {
     effect(() => this.load(this.id()));
-    inject(DestroyRef).onDestroy(() => this.request?.unsubscribe());
   }
 
   protected retry(): void {
@@ -107,7 +103,6 @@ export class OrderDetailPage {
   }
 
   private load(rawId: string): void {
-    this.request?.unsubscribe();
     this.notFound.set(false);
     this.loadError.set(null);
     const id = Number(rawId);
@@ -117,7 +112,7 @@ export class OrderDetailPage {
       return;
     }
     this.loading.set(this.order()?.id !== id);
-    this.request = this.orders.get(id).subscribe({
+    this.orders.get(id).subscribe({
       next: (order) => {
         this.order.set(order);
         this.loading.set(false);

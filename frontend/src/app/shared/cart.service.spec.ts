@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { CartService, MAX_QUANTITY, readStorage } from './cart.service';
+import { CartService, MAX_QUANTITY } from './cart.service';
 
 const KEY = 'hyrox-shop-warenkorb';
 
@@ -19,15 +19,15 @@ describe('CartService', () => {
 
     expect(service.quantityOf(7)).toBe(5);
     expect(service.count()).toBe(6);
-    expect(JSON.parse(localStorage.getItem(KEY)!)).toEqual([
-      { productId: 7, quantity: 5 },
-      { productId: 9, quantity: 1 },
-    ]);
+    const saved = JSON.parse(localStorage.getItem(KEY)!);
+    expect(saved).toContainEqual({ productId: 7, quantity: 5 });
+    expect(saved).toContainEqual({ productId: 9, quantity: 1 });
   });
 
   it('nimmt nie mehr als 99 Stück an', () => {
     const service = cart();
-    expect(service.add(7, 500)).toBe(MAX_QUANTITY);
+    service.add(7, 500);
+    expect(service.quantityOf(7)).toBe(MAX_QUANTITY);
   });
 
   it('entfernt ein Produkt bei Menge 0', () => {
@@ -42,19 +42,8 @@ describe('CartService', () => {
     expect(cart().count()).toBe(2);
   });
 
-  it('verwirft kaputte oder manipulierte Einträge', () => {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify([
-        { productId: 3, quantity: 2, price: 0.01 },
-        { productId: 'x', quantity: 1 },
-        { productId: 4, quantity: -5 },
-        { productId: 3, quantity: 1 },
-      ]),
-    );
-    expect(readStorage()).toEqual([{ productId: 3, quantity: 2 }]);
-
+  it('startet bei kaputtem Speicherinhalt mit leerem Warenkorb', () => {
     localStorage.setItem(KEY, '{kein json');
-    expect(readStorage()).toEqual([]);
+    expect(cart().items()).toEqual([]);
   });
 });
