@@ -135,31 +135,43 @@
             <tbody>
               <tr>
                 <th scope="row">Energie</th>
-                <td>{{ values.energyKcal ?? '–' }} kcal</td>
+                <td>
+                  {{ values.energyKcal != null ? (values.energyKcal | number: '1.0-2') : '–' }} kcal
+                </td>
               </tr>
               <tr>
                 <th scope="row">Eiweiß</th>
-                <td>{{ values.protein ?? '–' }} g</td>
+                <td>{{ values.protein != null ? (values.protein | number: '1.0-2') : '–' }} g</td>
               </tr>
               <tr>
                 <th scope="row">Kohlenhydrate</th>
-                <td>{{ values.carbohydrates ?? '–' }} g</td>
+                <td>
+                  {{
+                    values.carbohydrates != null ? (values.carbohydrates | number: '1.0-2') : '–'
+                  }}
+                  g
+                </td>
               </tr>
               <tr>
                 <th scope="row">davon Zucker</th>
-                <td>{{ values.sugars ?? '–' }} g</td>
+                <td>{{ values.sugars != null ? (values.sugars | number: '1.0-2') : '–' }} g</td>
               </tr>
               <tr>
                 <th scope="row">Fett</th>
-                <td>{{ values.fat ?? '–' }} g</td>
+                <td>{{ values.fat != null ? (values.fat | number: '1.0-2') : '–' }} g</td>
               </tr>
               <tr>
                 <th scope="row">davon gesättigte Fettsäuren</th>
-                <td>{{ values.saturatedFat ?? '–' }} g</td>
+                <td>
+                  {{
+                    values.saturatedFat != null ? (values.saturatedFat | number: '1.0-2') : '–'
+                  }}
+                  g
+                </td>
               </tr>
               <tr>
                 <th scope="row">Salz</th>
-                <td>{{ values.salt ?? '–' }} g</td>
+                <td>{{ values.salt != null ? (values.salt | number: '1.0-2') : '–' }} g</td>
               </tr>
             </tbody>
           </table>

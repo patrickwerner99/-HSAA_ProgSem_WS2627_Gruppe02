@@ -89,6 +89,7 @@ describe('ProductDetailPage – Nährwerte', () => {
 
     expect(text()).toContain('Nährwerte pro 100 g');
     expect(text()).toContain('78 g');
+    expect(text()).toContain('5,4 g');
     expect(text()).toContain('Open Food Facts');
     expect(text()).toContain('Sportness');
   });

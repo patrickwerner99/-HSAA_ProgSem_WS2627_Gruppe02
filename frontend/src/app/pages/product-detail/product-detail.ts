@@ -1,4 +1,4 @@
-import { CurrencyPipe, DatePipe, Location } from '@angular/common';
+import { CurrencyPipe, DatePipe, DecimalPipe, Location } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, computed, effect, inject, input, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,6 +21,7 @@ import { NotifyService } from '../../shared/notify.service';
   imports: [
     CurrencyPipe,
     DatePipe,
+    DecimalPipe,
     RouterLink,
     MatButtonModule,
     MatProgressSpinnerModule,
