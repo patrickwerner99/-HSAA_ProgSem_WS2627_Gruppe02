@@ -168,12 +168,13 @@ public class SampleDataLoader implements ApplicationRunner {
 
 	/**
 	 * Barcodes für die Nährwerte aus Open Food Facts (H1, 0027). Unser Shop ist ausgedacht, deshalb steht
-	 * hier der Barcode eines echten, vergleichbaren Produkts; die Seite nennt Name und Marke dazu.
+	 * hier der Barcode eines echten, vergleichbaren Produkts (Sportness Protein 90 Shake Schoko, mit
+	 * Nährwerten "wie verkauft" bei Open Food Facts); die Seite nennt Name und Marke dazu.
 	 */
 	private static void addSampleBarcodes(List<Product> list) {
 		list.stream()
 				.filter(p -> p.getName().equals("Whey Protein Schoko"))
-				.forEach(p -> p.setEan("4058172511097"));
+				.forEach(p -> p.setEan("4066447398083"));
 	}
 
 	/** Rabattcodes zum Ausprobieren (G2, 0024): einer gültig, einer begrenzt, einer abgelaufen. */

@@ -36,13 +36,20 @@ import de.hsaa.shop.product.ProductRepository;
 @Transactional
 class NutritionApiTests {
 
-	private static final String SPORTNESS = "4058172511097";
+	private static final String SPORTNESS = "4066447398083";
 	private static final String JSON = """
-			{ "code": "4058172511097", "status": 1, "status_verbose": "product found",
+			{ "code": "4066447398083", "status": 1, "status_verbose": "product found",
 			  "product": { "product_name": "WHEY Protein Schoko-Geschmack", "brands": "Sportness",
 			    "nutriscore_grade": "unknown",
-			    "nutriments": { "energy-kcal_100g": 378, "proteins_100g": 78, "carbohydrates_100g": 5.4,
+			    "nutriments": { "energy_100g": 1582, "proteins_100g": 78, "carbohydrates_100g": 5.4,
 			      "sugars_100g": 3.2, "fat_100g": 4.9, "saturated-fat_100g": 2.1, "salt_100g": 0.6 } } }
+			""";
+
+	/** Bekannt, aber ohne Nährwerte (kommt bei Open Food Facts vor). */
+	private static final String EMPTY = "4058172511097";
+	private static final String EMPTY_JSON = """
+			{ "status": 1, "product": { "product_name": "WHEY Protein Schoko-Geschmack", "brands": "Sportness",
+			  "nutriments": {} } }
 			""";
 
 	/** Was der Fake-Server gerade tun soll. */
@@ -81,6 +88,14 @@ class NutritionApiTests {
 			catch (InterruptedException ex) {
 				Thread.currentThread().interrupt();
 			}
+		}
+		if (exchange.getRequestURI().getPath().contains(EMPTY)) {
+			byte[] empty = EMPTY_JSON.getBytes(StandardCharsets.UTF_8);
+			exchange.getResponseHeaders().add("Content-Type", "application/json");
+			exchange.sendResponseHeaders(200, empty.length);
+			exchange.getResponseBody().write(empty);
+			exchange.close();
+			return;
 		}
 		boolean known = exchange.getRequestURI().getPath().contains(SPORTNESS);
 		int code = mode == Mode.DOWN ? 500 : known ? 200 : 404;
@@ -158,6 +173,14 @@ class NutritionApiTests {
 		mvc.perform(get("/api/products/" + product.getId() + "/nutrition"))
 			.andExpect(status().isNotFound())
 			.andExpect(jsonPath("$.detail").value("Open Food Facts kennt dieses Produkt nicht."));
+	}
+
+	@Test
+	void productWithoutNutritionValuesIs404() throws Exception {
+		Product product = withoutEan();
+		product.setEan(EMPTY);
+		mvc.perform(get("/api/products/" + product.getId() + "/nutrition"))
+			.andExpect(status().isNotFound());
 	}
 
 	@Test

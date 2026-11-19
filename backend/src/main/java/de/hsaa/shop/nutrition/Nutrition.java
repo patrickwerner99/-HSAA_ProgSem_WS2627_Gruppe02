@@ -28,6 +28,12 @@ public record Nutrition(
 		Instant fetchedAt,
 		boolean stale) {
 
+	/** Steht überhaupt ein Nährwert drin? */
+	boolean hasValues() {
+		return energyKcal != null || protein != null || carbohydrates != null || sugars != null || fat != null
+				|| saturatedFat != null || salt != null;
+	}
+
 	Nutrition asStale() {
 		return new Nutrition(ean, productName, brands, energyKcal, protein, carbohydrates, sugars, fat, saturatedFat,
 				salt, nutriScore, sourceUrl, source, fetchedAt, true);

@@ -1097,12 +1097,12 @@ DELETE {{host}}/api/products/999999/sale
 PATCH {{host}}/api/products/{{newProductId}}
 Content-Type: application/json
 
-{ "ean": "4058172511097" }
+{ "ean": "4066447398083" }
 
 > {%
     client.test("200 + ean", () => {
         client.assert(response.status === 200, "Status " + response.status);
-        client.assert(response.body.ean === "4058172511097", JSON.stringify(response.body));
+        client.assert(response.body.ean === "4066447398083", JSON.stringify(response.body));
     });
 %}
 

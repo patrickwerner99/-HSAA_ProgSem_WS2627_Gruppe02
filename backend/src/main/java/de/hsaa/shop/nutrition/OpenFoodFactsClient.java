@@ -73,11 +73,26 @@ public class OpenFoodFactsClient {
 		}
 		OffProduct p = response.product();
 		Map<String, Object> n = p.nutriments() == null ? Map.of() : p.nutriments();
-		return Optional.of(new Nutrition(ean, p.product_name(), p.brands(),
-				number(n, "energy-kcal_100g"), number(n, "proteins_100g"), number(n, "carbohydrates_100g"),
+		Nutrition nutrition = new Nutrition(ean, p.product_name(), p.brands(),
+				energyKcal(n), number(n, "proteins_100g"), number(n, "carbohydrates_100g"),
 				number(n, "sugars_100g"), number(n, "fat_100g"), number(n, "saturated-fat_100g"),
 				number(n, "salt_100g"), p.nutriscore_grade(),
-				baseUrl + "/product/" + ean, "Open Food Facts", Instant.now(), false));
+				baseUrl + "/product/" + ean, "Open Food Facts", Instant.now(), false);
+		// Produkt bekannt, aber ohne Nährwerte "wie verkauft": wie unbekannt behandeln, statt eine leere Tabelle zu zeigen.
+		return nutrition.hasValues() ? Optional.of(nutrition) : Optional.empty();
+	}
+
+	/** Kalorien; manche Einträge haben nur kJ, dann umrechnen (1 kcal = 4,184 kJ). */
+	private static BigDecimal energyKcal(Map<String, Object> nutriments) {
+		BigDecimal kcal = number(nutriments, "energy-kcal_100g");
+		if (kcal != null) {
+			return kcal;
+		}
+		BigDecimal kj = number(nutriments, "energy-kj_100g");
+		if (kj == null) {
+			kj = number(nutriments, "energy_100g"); // bei Open Food Facts immer kJ
+		}
+		return kj == null ? null : kj.divide(new BigDecimal("4.184"), 0, java.math.RoundingMode.HALF_UP);
 	}
 
 	private static BigDecimal number(Map<String, Object> nutriments, String key) {
