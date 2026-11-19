@@ -48,6 +48,18 @@
   margin: 0;
 }
 
+.variant {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  color: var(--shop-muted);
+}
+
+.variant strong {
+  color: var(--shop-dark);
+}
+
 .price {
   margin: 0;
   font-size: 1.75rem;
@@ -127,4 +139,82 @@
 .in-cart a {
   font-weight: 600;
   color: var(--shop-dark);
+}
+
+.sizes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--shop-muted);
+}
+
+.size-link {
+  padding: 0.25rem 0.75rem;
+  border: 2px solid var(--shop-dark);
+  border-radius: 999px;
+  color: var(--shop-dark);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.size-link:hover {
+  background: var(--shop-dark);
+  color: #fff;
+}
+
+.price.sale {
+  color: #b3261e;
+}
+
+.price .regular {
+  margin-left: 0.5rem;
+  color: var(--shop-muted);
+  font-size: 1.1rem;
+  font-weight: 400;
+}
+
+.saving {
+  margin: 0;
+  font-weight: 700;
+  color: #b3261e;
+}
+
+.returned {
+  margin: 0;
+  font-weight: 600;
+  color: #0f6e56;
+}
+
+.nutrition {
+  margin-top: 1.5rem;
+}
+
+.nutrition h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+
+.nutrition table {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 26rem;
+}
+
+.nutrition th,
+.nutrition td {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.3rem 0;
+  font-weight: normal;
+  text-align: left;
+}
+
+.nutrition td {
+  text-align: right;
+}
+
+.nutrition .source,
+.nutrition-state {
+  font-size: 0.85rem;
+  color: rgba(0, 0, 0, 0.6);
 }

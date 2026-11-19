@@ -18,3 +18,14 @@
 | 0014 | Produktbilder | Must | Sprint 2 | erfüllt | [0014-produktbilder.md](0014-produktbilder.md) |
 | 0015 | REST-API nach Regeln, mit .http-Datei | Must | Sprint 2 | erfüllt | [0015-rest-api-und-http-datei.md](0015-rest-api-und-http-datei.md) |
 | 0016 | Start mit einem Befehl, Daten bleiben, keine Geheimnisse | Must | Sprint 2 | erfüllt | [0016-start-daten-geheimnisse.md](0016-start-daten-geheimnisse.md) |
+| 0017 | Lieferadresse beim Bestellen | Must | Sprint 3 | erfüllt | [0017-lieferadresse-beim-bestellen.md](0017-lieferadresse-beim-bestellen.md) |
+| 0018 | Packungsgrößen | Must | Sprint 3 | erfüllt | [0018-packungsgroessen.md](0018-packungsgroessen.md) |
+| 0019 | Nach Produktart filtern (Pulver, Riegel, Getränke …) | Must | Sprint 3 | erfüllt | [0019-produktart-filter.md](0019-produktart-filter.md) |
+| 0020 | Realistisches Sortiment als Beispieldaten | Should | Sprint 3 | erfüllt | [0020-realistisches-sortiment.md](0020-realistisches-sortiment.md) |
+| 0021 | Eigene Kontodaten ändern | Must | Sprint 3 | erfüllt | [0021-kontodaten-aendern.md](0021-kontodaten-aendern.md) |
+| 0022 | Mehrere Adressen speichern, eine pro Bestellung wählen | Must | Sprint 3 | erfüllt | [0022-mehrere-adressen.md](0022-mehrere-adressen.md) |
+| 0023 | Sale: reduzierte Preise für einen Zeitraum | Must | Sprint 3 | erfüllt | [0023-sale.md](0023-sale.md) |
+| 0024 | Rabattcodes | Must | Sprint 3 | erfüllt | [0024-rabattcodes.md](0024-rabattcodes.md) |
+| 0025 | Retoure anmelden und Stand verfolgen | Must | Sprint 3 | erfüllt | [0025-retoure-anmelden.md](0025-retoure-anmelden.md) |
+| 0026 | Retouren bearbeiten, originalverschlossene Ware reduziert verkaufen | Must | Sprint 3 | erfüllt | [0026-retouren-bearbeiten.md](0026-retouren-bearbeiten.md) |
+| 0027 | Nährwerte aus Open Food Facts (externe API) | Must | Sprint 3 | erfüllt | [0027-naehrwerte-externe-api.md](0027-naehrwerte-externe-api.md) |

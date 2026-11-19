@@ -76,3 +76,23 @@
   color: var(--stock-out);
   font-weight: 600;
 }
+
+.sale-block h3 {
+  margin: 0;
+}
+
+.sale-block .hint {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--shop-muted);
+  font-size: 0.9rem;
+}
+
+.row.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 600px) {
+  .row.three {
+    grid-template-columns: 1fr;
+  }
+}

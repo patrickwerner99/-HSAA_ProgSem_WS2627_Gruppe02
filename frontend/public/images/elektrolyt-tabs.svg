@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="ELEKTROLYT-TABS Orange">
+  <rect width="400" height="400" fill="#f28c38"/>
+  <circle cx="330" cy="70" r="140" fill="#ffffff" opacity="0.12"/>
+  <rect x="140" y="60" width="120" height="40" rx="10" fill="#f2c230"/>
+  <rect x="135" y="95" width="130" height="245" rx="18" fill="#15181c"/>
+  <rect x="135" y="185" width="130" height="80" fill="#f2c230"/>
+  <circle cx="175" cy="300" r="10" fill="#f3f1eb" opacity="0.5"/>
+  <circle cx="200" cy="300" r="10" fill="#f3f1eb" opacity="0.5"/>
+  <circle cx="225" cy="300" r="10" fill="#f3f1eb" opacity="0.5"/>
+  <text x="200" y="150" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#f3f1eb" text-anchor="middle" letter-spacing="1">TABS</text>
+  <text x="200" y="232" font-family="Arial, sans-serif" font-size="18" font-weight="700" fill="#15181c" text-anchor="middle">ORANGE</text>
+  <text x="200" y="378" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#15181c" text-anchor="middle" opacity="0.8">Orange</text>
+</svg>

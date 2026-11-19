@@ -72,4 +72,16 @@ public class AppUser {
 	public Instant getCreatedAt() {
 		return createdAt;
 	}
+
+	void setEmail(String email) {
+		this.email = email;
+	}
+
+	void setName(String name) {
+		this.name = name;
+	}
+
+	void setPasswordHash(String passwordHash) {
+		this.passwordHash = passwordHash;
+	}
 }

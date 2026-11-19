@@ -46,11 +46,11 @@ class CategoryApiTests {
 	}
 
 	@Test
-	void sampleDataHasFourCategoriesWithProductCount() throws Exception {
+	void sampleDataHasFiveCategoriesWithProductCount() throws Exception {
 		mvc.perform(get("/api/categories"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$", hasSize(4)))
-			.andExpect(jsonPath("$[?(@.name == 'Protein')].productCount").value(4));
+			.andExpect(jsonPath("$", hasSize(5)))
+			.andExpect(jsonPath("$[?(@.name == 'Protein')].productCount").value(11));
 	}
 
 	@Test
@@ -97,7 +97,7 @@ class CategoryApiTests {
 		mvc.perform(delete("/api/categories/" + id).with(admin()))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.detail").value(
-					"Die Kategorie enthält noch 4 Produkte. Bitte die Produkte zuerst verschieben oder löschen."));
+					"Die Kategorie enthält noch 11 Produkte. Bitte die Produkte zuerst verschieben oder löschen."));
 	}
 
 	@Test

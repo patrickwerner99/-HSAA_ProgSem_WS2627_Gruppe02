@@ -10,7 +10,7 @@ import jakarta.validation.constraints.Size;
 
 /**
  * Änderung einzelner Felder (PATCH). Felder, die fehlen oder null sind, bleiben unverändert.
- * Beschreibung und Bild-URL lassen sich mit einem leeren Text "" löschen.
+ * Beschreibung, Bild-URL und Größe lassen sich mit einem leeren Text "" löschen.
  * Es gelten dieselben Regeln wie in {@link ProductRequest}, nur ist nichts Pflicht.
  */
 public record ProductPatch(
@@ -35,5 +35,13 @@ public record ProductPatch(
 		@Pattern(regexp = ProductRules.IMAGE_URL_PATTERN, message = ProductRules.IMAGE_URL)
 		String imageUrl,
 
-		Long categoryId) {
+		Long categoryId,
+
+		@Size(max = 30, message = ProductRules.SIZE_SIZE)
+		String size,
+
+		ProductForm form,
+
+		@Pattern(regexp = ProductRules.EAN_PATTERN, message = ProductRules.EAN_FORMAT)
+		String ean) {
 }

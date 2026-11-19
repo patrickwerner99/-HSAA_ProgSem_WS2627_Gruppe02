@@ -50,6 +50,10 @@ public class SecurityConfig {
 				.requestMatchers("/api/products", "/api/products/**").hasRole("ADMIN")
 				.requestMatchers("/api/categories", "/api/categories/**").hasRole("ADMIN")
 				.requestMatchers("/api/orders", "/api/orders/**").authenticated()
+				// Rabattcodes (G2): Liste und Pflege nur Admin, einen Code prüfen darf jeder Angemeldete.
+				.requestMatchers(HttpMethod.GET, "/api/discount-codes").hasRole("ADMIN")
+				.requestMatchers(HttpMethod.GET, "/api/discount-codes/*").authenticated()
+				.requestMatchers("/api/discount-codes", "/api/discount-codes/**").hasRole("ADMIN")
 				.anyRequest().authenticated())
 			.exceptionHandling(errors -> errors
 				.authenticationEntryPoint((request, response, ex) -> writeProblem(response, 401,

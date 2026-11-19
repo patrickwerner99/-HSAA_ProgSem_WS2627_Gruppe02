@@ -40,5 +40,14 @@ public record ProductRequest(
 		String imageUrl,
 
 		@NotNull(message = ProductRules.CATEGORY_REQUIRED)
-		Long categoryId) {
+		Long categoryId,
+
+		@Size(max = 30, message = ProductRules.SIZE_SIZE)
+		String size,
+
+		@NotNull(message = ProductRules.FORM_REQUIRED)
+		ProductForm form,
+
+		@Pattern(regexp = ProductRules.EAN_PATTERN, message = ProductRules.EAN_FORMAT)
+		String ean) {
 }

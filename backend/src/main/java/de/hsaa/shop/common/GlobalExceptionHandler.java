@@ -107,6 +107,12 @@ public class GlobalExceptionHandler {
 		return invalidInput(List.of(new FieldMessage(ex.getRequestPartName(), "Bitte ein Bild auswählen.")));
 	}
 
+	/** Externe API (Open Food Facts) nicht erreichbar: 503, der Rest des Shops funktioniert weiter (H2). */
+	@ExceptionHandler(ExternalServiceException.class)
+	public ProblemDetail handleExternalService(ExternalServiceException ex) {
+		return problem(HttpStatus.SERVICE_UNAVAILABLE, "Gerade nicht verfügbar", ex.getMessage());
+	}
+
 	@ExceptionHandler(ConflictException.class)
 	public ProblemDetail handleConflict(ConflictException ex) {
 		return problem(HttpStatus.CONFLICT, "Konflikt", ex.getMessage());

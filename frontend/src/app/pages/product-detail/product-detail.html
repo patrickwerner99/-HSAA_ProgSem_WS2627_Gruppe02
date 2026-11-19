@@ -26,7 +26,53 @@
     <div class="info">
       <span class="category">{{ product.categoryName }}</span>
       <h1>{{ product.name }}</h1>
-      <p class="price">{{ product.price | currency }}</p>
+      @if (product.size || product.form) {
+        <p class="variant">
+          @if (product.size) {
+            <span
+              >Größe: <strong>{{ product.size }}</strong></span
+            >
+          }
+          @if (product.form) {
+            <span
+              >Art: <strong>{{ formLabel(product.form) }}</strong></span
+            >
+          }
+        </p>
+      }
+      <p class="price" [class.sale]="product.onSale">
+        {{ product.price | currency }}
+        @if (product.onSale) {
+          <s class="regular">{{ product.regularPrice | currency }}</s>
+        }
+      </p>
+      @if (product.onSale) {
+        <p class="saving">
+          Du sparst {{ product.regularPrice - product.price | currency }} ({{
+            product.savingPercent
+          }}
+          %)
+          @if (product.saleUntil) {
+            – Angebot bis {{ product.saleUntil | date: 'dd.MM.yyyy' }}
+          }
+        </p>
+      }
+      @if (product.returnedGoods) {
+        <p class="returned">
+          Retourenware: originalverschlossen zurückgeschickt, Siegel geprüft und reduziert.
+        </p>
+      }
+
+      @if (otherSizes().length > 0) {
+        <nav class="sizes" aria-label="Andere Packungsgrößen">
+          <span>Auch erhältlich:</span>
+          @for (other of otherSizes(); track other.id) {
+            <a class="size-link" [routerLink]="['/produkte', other.id]">
+              {{ other.size || 'Standard' }} · {{ other.price | currency }}
+            </a>
+          }
+        </nav>
+      }
 
       @if (stock(); as stock) {
         <p class="stock {{ stock.cssClass }}">
@@ -73,6 +119,65 @@
 
       @if (product.description) {
         <p class="description">{{ product.description }}</p>
+      }
+
+      @let values = nutrition();
+      @if (values === 'loading') {
+        <p class="nutrition-state" aria-live="polite">Nährwerte werden geladen …</p>
+      } @else if (values === 'unavailable') {
+        <p class="nutrition-state">
+          Nährwerte sind gerade nicht verfügbar. Versuch es später noch einmal.
+        </p>
+      } @else if (values !== 'none') {
+        <section class="nutrition" aria-labelledby="nutrition-title">
+          <h2 id="nutrition-title">Nährwerte pro 100 g</h2>
+          <table>
+            <tbody>
+              <tr>
+                <th scope="row">Energie</th>
+                <td>{{ values.energyKcal ?? '–' }} kcal</td>
+              </tr>
+              <tr>
+                <th scope="row">Eiweiß</th>
+                <td>{{ values.protein ?? '–' }} g</td>
+              </tr>
+              <tr>
+                <th scope="row">Kohlenhydrate</th>
+                <td>{{ values.carbohydrates ?? '–' }} g</td>
+              </tr>
+              <tr>
+                <th scope="row">davon Zucker</th>
+                <td>{{ values.sugars ?? '–' }} g</td>
+              </tr>
+              <tr>
+                <th scope="row">Fett</th>
+                <td>{{ values.fat ?? '–' }} g</td>
+              </tr>
+              <tr>
+                <th scope="row">davon gesättigte Fettsäuren</th>
+                <td>{{ values.saturatedFat ?? '–' }} g</td>
+              </tr>
+              <tr>
+                <th scope="row">Salz</th>
+                <td>{{ values.salt ?? '–' }} g</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="source">
+            Quelle:
+            <a [href]="values.sourceUrl" target="_blank" rel="noopener">{{ values.source }}</a>
+            @if (values.productName) {
+              (Vergleichsprodukt „{{ values.productName }}“
+              @if (values.brands) {
+                von {{ values.brands }}
+              }
+              )
+            }
+            @if (values.stale) {
+              · Stand {{ values.fetchedAt | date: 'dd.MM.yyyy HH:mm' }}, gerade nicht aktualisierbar
+            }
+          </p>
+        </section>
       }
     </div>
   </article>

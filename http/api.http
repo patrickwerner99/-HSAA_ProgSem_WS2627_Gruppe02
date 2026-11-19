@@ -100,6 +100,99 @@ GET {{host}}/api/products/abc
     client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
 %}
 
+### Nur Riegel (Produktart), günstigste zuerst – erwartet 200, alle mit form RIEGEL (0019)
+GET {{host}}/api/products?form=RIEGEL&sort=price-asc
+
+> {%
+    client.test("200 + nur Riegel", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.every(p => p.form === "RIEGEL"), JSON.stringify(response.body.items));
+    });
+%}
+
+### Gleiches Produkt in mehreren Packungsgrößen – erwartet 200 mit Feld size (0018)
+GET {{host}}/api/products?q=Whey%20Protein%20Schoko&sort=price-asc
+
+> {%
+    client.test("200 + size", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.every(p => p.size), JSON.stringify(response.body.items));
+    });
+%}
+
+### FEHLER: unbekannte Produktart – erwartet 400 mit Feldfehler "form"
+GET {{host}}/api/products?form=Kekse
+
+> {%
+    client.test("400 + Feld form", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "form", JSON.stringify(response.body));
+    });
+%}
+
+########################################################################################
+# Sale und Nährwerte (für alle) – Sprint 3, G1, H1/H2, 0023, 0027
+########################################################################################
+
+### Sale-Bereich, größte Ersparnis zuerst – erwartet 200, alle onSale mit Ersparnis
+GET {{host}}/api/products?sale=true&sort=saving
+
+> {%
+    client.test("200 + nur Sale", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.length > 0, "keine Sale-Produkte");
+        client.assert(response.body.items.every(p => p.onSale && p.price < p.regularPrice && p.savingPercent > 0),
+            JSON.stringify(response.body.items));
+    });
+%}
+
+### Produkt mit Barcode suchen (für die Nährwerte) – erwartet 200
+GET {{host}}/api/products?q=Whey%20Protein%20Schoko
+
+> {%
+    client.test("200 + Produkt mit EAN", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.some(p => p.ean), "kein Produkt mit EAN");
+    });
+    client.global.set("eanProductId", response.body.items.find(p => p.ean).id);
+%}
+
+### Nährwerte aus Open Food Facts – erwartet 200 (oder 503, wenn Open Food Facts gerade nicht erreichbar ist, H2)
+GET {{host}}/api/products/{{eanProductId}}/nutrition
+
+> {%
+    client.test("200 mit Nährwerten oder 503 als Problem Details", () => {
+        client.assert(response.status === 200 || response.status === 503, "Status " + response.status);
+        if (response.status === 200) {
+            client.assert(response.body.source === "Open Food Facts", response.body.source);
+            client.assert(typeof response.body.protein === "number", JSON.stringify(response.body));
+        } else {
+            client.assert(response.contentType.mimeType === "application/problem+json", response.contentType.mimeType);
+        }
+    });
+%}
+
+### FEHLER: Nährwerte für ein Produkt ohne Barcode – erwartet 404
+GET {{host}}/api/products/{{productId}}/nutrition
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### FEHLER: Nährwerte für ein Produkt, das es nicht gibt – erwartet 404
+GET {{host}}/api/products/999999/nutrition
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### FEHLER: Sale-Filter mit Unsinn – erwartet 400
+GET {{host}}/api/products?sale=vielleicht
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
 ########################################################################################
 # Kategorien lesen (für alle) – 0001, 0003
 ########################################################################################
@@ -281,7 +374,8 @@ Content-Type: application/json
 POST {{host}}/api/orders
 Content-Type: application/json
 
-{ "items": [ { "productId": {{productId}}, "quantity": 2, "price": 0.01 } ] }
+{ "items": [ { "productId": {{productId}}, "quantity": 2, "price": 0.01 } ],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" } }
 
 > {%
     client.test("201, Location, Preis vom Server", () => {
@@ -297,7 +391,8 @@ Content-Type: application/json
 POST {{host}}/api/orders
 Content-Type: application/json
 
-{ "items": [ { "productId": {{productId}}, "quantity": 99 } ] }
+{ "items": [ { "productId": {{productId}}, "quantity": 99 } ],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" } }
 
 > {%
     client.test("409 + items", () => {
@@ -310,10 +405,38 @@ Content-Type: application/json
 POST {{host}}/api/orders
 Content-Type: application/json
 
-{ "items": [] }
+{ "items": [],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" } }
 
 > {%
     client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### FEHLER: Bestellung ohne Lieferadresse – erwartet 400 mit Feldfehler "deliveryAddress" (0017)
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("400 + Feld deliveryAddress", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "deliveryAddress", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: ungültige Postleitzahl – erwartet 400 mit Feldfehler "deliveryAddress.postalCode"
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "123", "city": "Aalen" } }
+
+> {%
+    client.test("400 + Feld PLZ", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors.some(e => e.field === "deliveryAddress.postalCode"), JSON.stringify(response.body));
+    });
 %}
 
 ### Meine Bestellungen – erwartet 200, nur eigene
@@ -372,6 +495,266 @@ Content-Type: application/json
 
 > {%
     client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+########################################################################################
+# Mein Konto, Adressen, Rabattcodes, Retouren als Kunde – Sprint 3, E1–E3, G2, F1
+########################################################################################
+
+### Eigene Kontodaten – erwartet 200
+GET {{host}}/api/account
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Namen ändern – erwartet 200
+PATCH {{host}}/api/account
+Content-Type: application/json
+
+{ "name": "Test Kundin" }
+
+> {%
+    client.test("200 + neuer Name", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.name === "Test Kundin", response.body.name);
+    });
+%}
+
+### FEHLER: E-Mail ändern ohne aktuelles Passwort – erwartet 400 mit Feldfehler "currentPassword"
+PATCH {{host}}/api/account
+Content-Type: application/json
+
+{ "email": "neu-{{$random.alphanumeric(8)}}@example.de" }
+
+> {%
+    client.test("400 + Feld currentPassword", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "currentPassword", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Passwort ändern mit falschem altem Passwort – erwartet 400
+PUT {{host}}/api/account/password
+Content-Type: application/json
+
+{ "currentPassword": "falsch-falsch", "newPassword": "neuesPasswort1" }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Adresse speichern – erwartet 201, erste Adresse wird Standard
+POST {{host}}/api/account/addresses
+Content-Type: application/json
+
+{ "label": "Zuhause", "name": "Test Kundin", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" }
+
+> {%
+    client.test("201 + Standard", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.body.standard === true, JSON.stringify(response.body));
+    });
+    client.global.set("addressId", response.body.id);
+%}
+
+### Zweite Adresse speichern und zum Standard machen – erwartet 201
+POST {{host}}/api/account/addresses
+Content-Type: application/json
+
+{ "label": "Arbeit", "name": "Test Kundin", "street": "Anton-Huber-Straße 25", "postalCode": "73430", "city": "Aalen", "standard": true }
+
+> {%
+    client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
+    client.global.set("workAddressId", response.body.id);
+%}
+
+### FEHLER: Adresse ohne Hausnummer, PLZ zu kurz – erwartet 400 mit Feldfehlern
+POST {{host}}/api/account/addresses
+Content-Type: application/json
+
+{ "label": "Kaputt", "name": "Test Kundin", "street": "Beethovenstraße", "postalCode": "734", "city": "Aalen" }
+
+> {%
+    client.test("400 + 2 Feldfehler", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors.length >= 2, JSON.stringify(response.body.errors));
+    });
+%}
+
+### Alle eigenen Adressen – erwartet 200, genau eine Standardadresse
+GET {{host}}/api/account/addresses
+
+> {%
+    client.test("200 + eine Standardadresse", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.filter(a => a.standard).length === 1, JSON.stringify(response.body));
+    });
+%}
+
+### Adresse ändern – erwartet 200
+PUT {{host}}/api/account/addresses/{{addressId}}
+Content-Type: application/json
+
+{ "label": "Zuhause", "name": "Test Kundin", "street": "Beethovenstraße 3", "postalCode": "73430", "city": "Aalen" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Adresse gibt es nicht (oder gehört jemand anderem) – erwartet 404
+PUT {{host}}/api/account/addresses/999999
+Content-Type: application/json
+
+{ "label": "Zuhause", "name": "Test Kundin", "street": "Beethovenstraße 3", "postalCode": "73430", "city": "Aalen" }
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### Rabattcode prüfen – erwartet 200 mit 10 %
+GET {{host}}/api/discount-codes/hyrox10
+
+> {%
+    client.test("200 + 10 %", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.percent === 10, JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: abgelaufener Rabattcode – erwartet 409
+GET {{host}}/api/discount-codes/SOMMER20
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: unbekannter Rabattcode – erwartet 404
+GET {{host}}/api/discount-codes/GIBTSNICHT
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### Bestellen mit gespeicherter Adresse und Rabattcode – erwartet 201, Adresse kopiert, 10 % Rabatt
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ], "addressId": {{workAddressId}}, "discountCode": "HYROX10" }
+
+> {%
+    client.test("201 + Adresse + Rabatt", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.body.deliveryAddress.street === "Anton-Huber-Straße 25", JSON.stringify(response.body.deliveryAddress));
+        client.assert(response.body.discountPercent === 10, JSON.stringify(response.body));
+        client.assert(response.body.total < response.body.subtotal, "kein Rabatt abgezogen");
+    });
+    client.global.set("discountOrderId", response.body.id);
+%}
+
+### FEHLER: Bestellen mit abgelaufenem Rabattcode – erwartet 400 mit Feldfehler "discountCode"
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ], "addressId": {{addressId}}, "discountCode": "SOMMER20" }
+
+> {%
+    client.test("400 + Feld discountCode", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "discountCode", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Bestellen mit fremder Adresse – erwartet 400 mit Feldfehler "addressId"
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{productId}}, "quantity": 1 } ], "addressId": 999999 }
+
+> {%
+    client.test("400 + Feld addressId", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "addressId", JSON.stringify(response.body));
+    });
+%}
+
+### Gespeicherte Adresse löschen – erwartet 204
+DELETE {{host}}/api/account/addresses/{{workAddressId}}
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+### Bestellung zeigt trotzdem noch die alte Adresse (E3) – erwartet 200
+GET {{host}}/api/orders/{{discountOrderId}}
+
+> {%
+    client.test("200 + Adresse unverändert", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.deliveryAddress.street === "Anton-Huber-Straße 25", JSON.stringify(response.body.deliveryAddress));
+    });
+%}
+
+### FEHLER: Retoure für eine noch nicht gelieferte Bestellung – erwartet 409
+POST {{host}}/api/returns
+Content-Type: application/json
+
+{ "orderId": {{discountOrderId}}, "reason": "Geschmack mag ich nicht",
+  "items": [ { "productId": {{productId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: Retoure ohne Grund – erwartet 400 mit Feldfehler "reason"
+POST {{host}}/api/returns
+Content-Type: application/json
+
+{ "orderId": {{discountOrderId}}, "reason": "", "items": [ { "productId": {{productId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Meine Retouren – erwartet 200
+GET {{host}}/api/returns?page=0&size=10
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Retouren zu einer Bestellung – erwartet 200
+GET {{host}}/api/orders/{{discountOrderId}}/returns
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Kunde setzt Retourenstatus – erwartet 403
+PATCH {{host}}/api/returns/1
+Content-Type: application/json
+
+{ "status": "REFUNDED" }
+
+> {%
+    client.test("403", () => client.assert(response.status === 403, "Status " + response.status));
+%}
+
+### FEHLER: Kunde listet alle Rabattcodes – erwartet 403
+GET {{host}}/api/discount-codes
+
+> {%
+    client.test("403", () => client.assert(response.status === 403, "Status " + response.status));
+%}
+
+### Kunde storniert die Rabatt-Bestellung wieder (Bestand kommt zurück) – erwartet 200
+PATCH {{host}}/api/orders/{{discountOrderId}}
+Content-Type: application/json
+
+{ "status": "CANCELLED" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
 %}
 
 ### Abmelden – erwartet 204
@@ -461,7 +844,7 @@ POST {{host}}/api/products
 Content-Type: application/json
 
 { "name": "Test-Produkt", "description": "Aus der .http-Datei", "price": 19.9, "stock": 3,
-  "imageUrl": null, "categoryId": {{categoryId}} }
+  "imageUrl": null, "categoryId": {{categoryId}}, "size": "500 g", "form": "PULVER" }
 
 > {%
     client.test("201 + Location", () => {
@@ -489,7 +872,7 @@ PUT {{host}}/api/products/{{newProductId}}
 Content-Type: application/json
 
 { "name": "Test-Produkt geändert", "description": null, "price": 21.5, "stock": 7,
-  "imageUrl": null, "categoryId": {{categoryId}} }
+  "imageUrl": null, "categoryId": {{categoryId}}, "size": "1 kg", "form": "PULVER" }
 
 > {%
     client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
@@ -587,7 +970,8 @@ DELETE {{host}}/api/products/{{newProductId}}/image
 POST {{host}}/api/orders
 Content-Type: application/json
 
-{ "items": [ { "productId": {{newProductId}}, "quantity": 1 } ] }
+{ "items": [ { "productId": {{newProductId}}, "quantity": 1 } ],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" } }
 
 > {%
     client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
@@ -644,7 +1028,339 @@ Content-Type: application/json
     client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
 %}
 
+# ---- Sale (G1, 0023) ----
+
+### Test-Produkt in den Sale – erwartet 200, price ist jetzt der Sale-Preis
+< {%
+    const today = new Date().toISOString().substring(0, 10);
+    const later = new Date(Date.now() + 14 * 86400000).toISOString().substring(0, 10);
+    request.variables.set("today", today);
+    request.variables.set("later", later);
+    client.global.set("today", today);
+%}
+PUT {{host}}/api/products/{{newProductId}}/sale
+Content-Type: application/json
+
+{ "salePrice": 14.9, "from": "{{today}}", "until": "{{later}}" }
+
+> {%
+    client.test("200 + Sale", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.onSale === true && response.body.price === 14.9, JSON.stringify(response.body));
+        client.assert(response.body.regularPrice > response.body.price, JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Sale-Preis höher als der normale Preis – erwartet 400 mit Feldfehler "salePrice"
+PUT {{host}}/api/products/{{newProductId}}/sale
+Content-Type: application/json
+
+{ "salePrice": 29.9, "from": "{{today}}", "until": "2099-12-31" }
+
+> {%
+    client.test("400 + Feld salePrice", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "salePrice", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Sale endet in der Vergangenheit – erwartet 400 mit Feldfehler "until"
+PUT {{host}}/api/products/{{newProductId}}/sale
+Content-Type: application/json
+
+{ "salePrice": 14.9, "from": "2020-01-01", "until": "2020-01-31" }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Sale beenden – erwartet 200, wieder normaler Preis
+DELETE {{host}}/api/products/{{newProductId}}/sale
+
+> {%
+    client.test("200 + normaler Preis", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.onSale === false && response.body.price === response.body.regularPrice, JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Sale für ein Produkt, das es nicht gibt – erwartet 404
+DELETE {{host}}/api/products/999999/sale
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+# ---- Nährwerte: Barcode pflegen (H1, 0027) ----
+
+### Barcode beim Test-Produkt eintragen – erwartet 200
+PATCH {{host}}/api/products/{{newProductId}}
+Content-Type: application/json
+
+{ "ean": "4058172511097" }
+
+> {%
+    client.test("200 + ean", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.ean === "4058172511097", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: ungültiger Barcode – erwartet 400 mit Feldfehler "ean"
+PATCH {{host}}/api/products/{{newProductId}}
+Content-Type: application/json
+
+{ "ean": "12ab" }
+
+> {%
+    client.test("400 + Feld ean", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "ean", JSON.stringify(response.body));
+    });
+%}
+
+# ---- Rabattcodes (G2, 0024) ----
+
+### Rabattcode anlegen – erwartet 201
+< {%
+    request.variables.set("newCode", "TEST" + Math.random().toString(36).substring(2, 8).toUpperCase());
+%}
+POST {{host}}/api/discount-codes
+Content-Type: application/json
+
+{ "code": "{{newCode}}", "percent": 20, "validFrom": "2026-01-01", "validUntil": "2099-12-31", "maxUses": 5 }
+
+> {%
+    client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
+    client.global.set("newCodeId", response.body.id);
+    client.global.set("newCode", response.body.code);
+%}
+
+### FEHLER: gleicher Code nochmal – erwartet 409
+POST {{host}}/api/discount-codes
+Content-Type: application/json
+
+{ "code": "HYROX10", "percent": 20, "validFrom": "2026-01-01", "validUntil": "2099-12-31" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### FEHLER: 80 % Rabatt, Ende vor Start – erwartet 400 mit Feldfehlern
+POST {{host}}/api/discount-codes
+Content-Type: application/json
+
+{ "code": "ZUVIEL", "percent": 80, "validFrom": "2026-12-31", "validUntil": "2026-01-01" }
+
+> {%
+    client.test("400", () => client.assert(response.status === 400, "Status " + response.status));
+%}
+
+### Alle Rabattcodes – erwartet 200
+GET {{host}}/api/discount-codes
+
+> {%
+    client.test("200 + Liste", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.some(c => c.code === "HYROX10"), JSON.stringify(response.body));
+    });
+%}
+
+### Rabattcode abschalten – erwartet 200
+PATCH {{host}}/api/discount-codes/{{newCodeId}}
+Content-Type: application/json
+
+{ "active": false }
+
+> {%
+    client.test("200 + inaktiv", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.active === false, JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: Rabattcode gibt es nicht – erwartet 404
+PATCH {{host}}/api/discount-codes/999999
+Content-Type: application/json
+
+{ "active": false }
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### Unbenutzten Rabattcode löschen – erwartet 204
+DELETE {{host}}/api/discount-codes/{{newCodeId}}
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
+
+# ---- Retouren (F1, F2, 0025, 0026) ----
+
+### Admin bestellt 2 Stück vom Test-Produkt (für die Retoure) – erwartet 201
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{ "items": [ { "productId": {{newProductId}}, "quantity": 2 } ],
+  "deliveryAddress": { "name": "Max Muster", "street": "Beethovenstraße 1", "postalCode": "73430", "city": "Aalen" } }
+
+> {%
+    client.test("201", () => client.assert(response.status === 201, "Status " + response.status));
+    client.global.set("returnOrderId", response.body.id);
+%}
+
+### Bestellung bearbeiten → versenden → zustellen – erwartet 200
+PATCH {{host}}/api/orders/{{returnOrderId}}
+Content-Type: application/json
+
+{ "status": "PROCESSING" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### (weiter) Versendet – erwartet 200
+PATCH {{host}}/api/orders/{{returnOrderId}}
+Content-Type: application/json
+
+{ "status": "SHIPPED" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### (weiter) Zugestellt – erwartet 200
+PATCH {{host}}/api/orders/{{returnOrderId}}
+Content-Type: application/json
+
+{ "status": "DELIVERED" }
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### Retoure anmelden: 1 von 2 Stück zurück – erwartet 201, Status REQUESTED
+POST {{host}}/api/returns
+Content-Type: application/json
+
+{ "orderId": {{returnOrderId}}, "reason": "Falsche Größe bestellt",
+  "items": [ { "productId": {{newProductId}}, "quantity": 1 } ] }
+
+> {%
+    client.test("201 + REQUESTED", () => {
+        client.assert(response.status === 201, "Status " + response.status);
+        client.assert(response.body.status === "REQUESTED", response.body.status);
+        client.assert(response.headers.valueOf("Location") !== null, "Location fehlt");
+    });
+    client.global.set("returnId", response.body.id);
+%}
+
+### FEHLER: mehr zurückschicken als noch möglich – erwartet 409
+POST {{host}}/api/returns
+Content-Type: application/json
+
+{ "orderId": {{returnOrderId}}, "reason": "Doch beide",
+  "items": [ { "productId": {{newProductId}}, "quantity": 2 } ] }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### Alle angemeldeten Retouren (Admin) – erwartet 200
+GET {{host}}/api/returns?status=REQUESTED&page=0&size=20
+
+> {%
+    client.test("200, nur REQUESTED", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.items.every(r => r.status === "REQUESTED"), "falscher Status");
+    });
+%}
+
+### Eine Retoure – erwartet 200
+GET {{host}}/api/returns/{{returnId}}
+
+> {%
+    client.test("200", () => client.assert(response.status === 200, "Status " + response.status));
+%}
+
+### FEHLER: Retoure gibt es nicht – erwartet 404
+GET {{host}}/api/returns/999999
+
+> {%
+    client.test("404", () => client.assert(response.status === 404, "Status " + response.status));
+%}
+
+### FEHLER: "Eingegangen" ohne Zustand der Ware – erwartet 400 mit Feldfehler "conditions"
+PATCH {{host}}/api/returns/{{returnId}}
+Content-Type: application/json
+
+{ "status": "RECEIVED" }
+
+> {%
+    client.test("400 + Feld conditions", () => {
+        client.assert(response.status === 400, "Status " + response.status);
+        client.assert(response.body.errors[0].field === "conditions", JSON.stringify(response.body));
+    });
+%}
+
+### FEHLER: direkt "Erstattet" ohne Eingang – erwartet 409
+PATCH {{host}}/api/returns/{{returnId}}
+Content-Type: application/json
+
+{ "status": "REFUNDED" }
+
+> {%
+    client.test("409", () => client.assert(response.status === 409, "Status " + response.status));
+%}
+
+### Eingegangen, Ware unbenutzt – erwartet 200, kommt als Retourenware in den Verkauf
+PATCH {{host}}/api/returns/{{returnId}}
+Content-Type: application/json
+
+{ "status": "RECEIVED", "conditions": [ { "productId": {{newProductId}}, "condition": "UNUSED" } ] }
+
+> {%
+    client.test("200 + RECEIVED", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.status === "RECEIVED", response.body.status);
+    });
+%}
+
+### Retourenware steht reduziert im Sale – erwartet 200
+GET {{host}}/api/products?q=Test-Produkt&sale=true
+
+> {%
+    client.test("200 + Retourenware", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        const item = response.body.items.find(p => p.returnedGoods);
+        client.assert(item && item.stock === 1 && item.price < item.regularPrice, JSON.stringify(response.body.items));
+    });
+    const item = response.body.items.find(p => p.returnedGoods);
+    if (item) client.global.set("returnedProductId", item.id);
+%}
+
+### Erstattet – erwartet 200 mit Betrag
+PATCH {{host}}/api/returns/{{returnId}}
+Content-Type: application/json
+
+{ "status": "REFUNDED", "note": "Betrag überwiesen" }
+
+> {%
+    client.test("200 + Betrag", () => {
+        client.assert(response.status === 200, "Status " + response.status);
+        client.assert(response.body.refundAmount > 0, JSON.stringify(response.body));
+    });
+%}
+
 # ---- Aufräumen ----
+
+### Retourenware des Test-Produkts löschen – erwartet 204
+DELETE {{host}}/api/products/{{returnedProductId}}
+
+> {%
+    client.test("204", () => client.assert(response.status === 204, "Status " + response.status));
+%}
 
 ### Test-Produkt löschen – erwartet 204
 DELETE {{host}}/api/products/{{newProductId}}

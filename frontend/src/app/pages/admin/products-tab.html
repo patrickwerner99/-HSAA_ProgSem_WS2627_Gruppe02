@@ -42,13 +42,29 @@
                 loading="lazy"
               />
             </td>
-            <td class="name">{{ product.name }}</td>
+            <td class="name">
+              {{ product.name }}
+              @if (product.size) {
+                <span class="size">{{ product.size }}</span>
+              }
+              @if (product.onSale) {
+                <span class="sale-tag"
+                  >Sale {{ product.price | currency }} bis
+                  {{
+                    product.saleUntil ? (product.saleUntil | date: 'dd.MM.') : 'Vorrat reicht'
+                  }}</span
+                >
+              }
+              @if (product.returnedGoods) {
+                <span class="sale-tag">Retourenware</span>
+              }
+            </td>
             <td>{{ product.categoryName }}</td>
             <td class="num">
               <input
                 class="cell-input"
                 inputmode="decimal"
-                [value]="priceForInput(product.price)"
+                [value]="priceForInput(product.regularPrice)"
                 [attr.aria-label]="'Preis von ' + product.name + ' in Euro'"
                 (keydown.enter)="$any($event.target).blur()"
                 (blur)="savePrice(product, $any($event.target))"

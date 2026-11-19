@@ -49,6 +49,11 @@ export class AuthService {
       .pipe(tap((user) => this.state.set(user)));
   }
 
+  /** Nach einer Änderung im Konto (Name, E-Mail) die angezeigten Daten aktualisieren. */
+  updateUser(user: User): void {
+    this.state.set(user);
+  }
+
   logout(): Observable<void> {
     return this.http.post<void>('/api/auth/logout', null).pipe(
       // Auch wenn das Backend nicht antwortet: im Browser gilt man danach als abgemeldet.

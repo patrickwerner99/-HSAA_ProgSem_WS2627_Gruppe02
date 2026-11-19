@@ -42,4 +42,11 @@ describe('ProductService', () => {
     expect(request.request.body).toEqual({ stock: 10 });
     request.flush({});
   });
+
+  it('schickt die Produktart als Parameter form (0019)', () => {
+    service.search({ form: 'RIEGEL' }).subscribe();
+    const request = httpMock.expectOne((r) => r.url === '/api/products');
+    expect(request.request.params.get('form')).toBe('RIEGEL');
+    request.flush({ items: [], page: 0, size: PAGE_SIZE, totalItems: 0, last: true });
+  });
 });

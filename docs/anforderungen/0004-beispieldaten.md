@@ -60,3 +60,7 @@ Als **Kunde** möchte ich beim ersten Start des Shops schon Beispielprodukte seh
 ## Offene Punkte
 
 * **Sorten als eigene Produkte:** In Sprint 1 ist jede Sorte ein eigenes Produkt. Ein echtes Varianten-Modell (ein Produkt, mehrere Sorten und Größen) ist für einen späteren Sprint vorgesehen.
+
+## Erweiterung
+
+Seit Sprint 3 umfasst das Sortiment 31 Produkte in 5 Kategorien, siehe [0020](0020-realistisches-sortiment.md).

@@ -1,6 +1,7 @@
 package de.hsaa.shop.order;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +9,7 @@ import java.util.List;
 import de.hsaa.shop.account.AppUser;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.Embedded;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -51,6 +53,20 @@ public class ShopOrder {
 	@Column(nullable = false)
 	private Instant updatedAt;
 
+	/** Lieferadresse, beim Bestellen kopiert (0017). Bei Bestellungen aus Sprint 2 leer. */
+	@Embedded
+	private DeliveryAddress deliveryAddress;
+
+	/** Eingelöster Rabattcode (G2), kopiert wie die Preise. null = ohne Rabatt. */
+	@Column(length = 20)
+	private String discountCode;
+
+	private Integer discountPercent;
+
+	/** So viel Euro hat der Code gespart; {@link #total} ist schon abzüglich dieses Betrags. */
+	@Column(precision = 10, scale = 2)
+	private BigDecimal discountAmount;
+
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
 	@OrderBy("id")
 	private List<OrderLine> lines = new ArrayList<>();
@@ -59,8 +75,9 @@ public class ShopOrder {
 		// für JPA
 	}
 
-	public ShopOrder(AppUser customer) {
+	public ShopOrder(AppUser customer, DeliveryAddress deliveryAddress) {
 		this.customer = customer;
+		this.deliveryAddress = deliveryAddress;
 		this.status = OrderStatus.RECEIVED;
 		this.total = BigDecimal.ZERO;
 		this.createdAt = Instant.now();
@@ -72,6 +89,35 @@ public class ShopOrder {
 		line.setOrder(this);
 		lines.add(line);
 		total = total.add(line.getLineTotal());
+	}
+
+	/**
+	 * Rabatt auf die ganze Bestellung (G2). Erst aufrufen, wenn alle Positionen drin sind.
+	 * Gerundet wird kaufmännisch auf Cent.
+	 */
+	public void applyDiscount(String code, int percent) {
+		this.discountCode = code;
+		this.discountPercent = percent;
+		this.discountAmount = total.multiply(BigDecimal.valueOf(percent))
+				.divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+		this.total = total.subtract(discountAmount);
+	}
+
+	/** Summe der Positionen vor Rabatt. */
+	public BigDecimal getSubtotal() {
+		return discountAmount == null ? total : total.add(discountAmount);
+	}
+
+	public String getDiscountCode() {
+		return discountCode;
+	}
+
+	public Integer getDiscountPercent() {
+		return discountPercent;
+	}
+
+	public BigDecimal getDiscountAmount() {
+		return discountAmount;
 	}
 
 	public Long getId() {
@@ -101,6 +147,11 @@ public class ShopOrder {
 
 	public Instant getUpdatedAt() {
 		return updatedAt;
+	}
+
+	/** null, wenn die Bestellung keine Adresse hat (ältere Bestellungen). */
+	public DeliveryAddress getDeliveryAddress() {
+		return deliveryAddress == null || deliveryAddress.isEmpty() ? null : deliveryAddress;
 	}
 
 	public List<OrderLine> getLines() {

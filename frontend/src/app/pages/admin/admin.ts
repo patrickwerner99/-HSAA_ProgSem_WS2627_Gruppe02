@@ -9,11 +9,19 @@ import { Category, Product } from '../../api/models';
 import { ProductService } from '../../api/product.service';
 import { userMessage } from '../../shared/errors';
 import { CategoriesTab } from './categories-tab';
+import { DiscountCodesTab } from './discount-codes-tab';
+import { ReturnsTab } from './returns-tab';
 import { OrdersTab } from './orders-tab';
 import { ProductsTab } from './products-tab';
 
 /** Reiter der Pflegeseite; jeder hat eine eigene Adresse, z. B. /pflege/bestellungen (C2). */
-export const ADMIN_TABS = ['produkte', 'kategorien', 'bestellungen'] as const;
+export const ADMIN_TABS = [
+  'produkte',
+  'kategorien',
+  'bestellungen',
+  'retouren',
+  'rabattcodes',
+] as const;
 export type AdminTab = (typeof ADMIN_TABS)[number];
 
 /**
@@ -29,6 +37,8 @@ export type AdminTab = (typeof ADMIN_TABS)[number];
     ProductsTab,
     CategoriesTab,
     OrdersTab,
+    DiscountCodesTab,
+    ReturnsTab,
   ],
   template: `
     <h1>Pflege</h1>
@@ -60,6 +70,16 @@ export type AdminTab = (typeof ADMIN_TABS)[number];
         <mat-tab label="Bestellungen">
           <ng-template matTabContent>
             <app-orders-tab />
+          </ng-template>
+        </mat-tab>
+        <mat-tab label="Retouren">
+          <ng-template matTabContent>
+            <app-returns-tab />
+          </ng-template>
+        </mat-tab>
+        <mat-tab label="Rabattcodes">
+          <ng-template matTabContent>
+            <app-discount-codes-tab />
           </ng-template>
         </mat-tab>
       </mat-tab-group>

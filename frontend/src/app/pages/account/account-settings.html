@@ -1,0 +1,180 @@
+<h1>Mein Konto</h1>
+
+<div class="sections">
+  <section class="box" aria-labelledby="profile-title">
+    <h2 id="profile-title">Kontodaten</h2>
+    @if (profileError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+    <form [formGroup]="profile" (ngSubmit)="saveProfile()" novalidate>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Name</mat-label>
+        <input matInput formControlName="name" autocomplete="name" required />
+        <mat-error>{{
+          fieldMessage(
+            profile.controls.name,
+            'Bitte deinen Namen eingeben.',
+            'Der Name muss 2 bis 100 Zeichen lang sein.'
+          )
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>E-Mail</mat-label>
+        <input matInput type="email" formControlName="email" autocomplete="email" required />
+        <mat-error>{{
+          fieldMessage(
+            profile.controls.email,
+            'Bitte eine E-Mail-Adresse eingeben.',
+            'Bitte eine gültige E-Mail-Adresse eingeben.'
+          )
+        }}</mat-error>
+      </mat-form-field>
+      @if (emailChanged()) {
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Aktuelles Passwort zur Bestätigung</mat-label>
+          <input
+            matInput
+            type="password"
+            formControlName="currentPassword"
+            autocomplete="current-password"
+          />
+          <mat-hint>Für eine neue E-Mail-Adresse brauchen wir dein Passwort.</mat-hint>
+          <mat-error>{{
+            fieldMessage(
+              profile.controls.currentPassword,
+              'Bitte gib dein Passwort ein.',
+              'Bitte prüfe dein Passwort.'
+            )
+          }}</mat-error>
+        </mat-form-field>
+      }
+      <button mat-flat-button type="submit" [disabled]="savingProfile()">
+        {{ savingProfile() ? 'Speichert…' : 'Kontodaten speichern' }}
+      </button>
+    </form>
+  </section>
+
+  <section class="box" aria-labelledby="password-title">
+    <h2 id="password-title">Passwort ändern</h2>
+    @if (passwordError(); as message) {
+      <p class="form-error" role="alert">{{ message }}</p>
+    }
+    <form [formGroup]="password" (ngSubmit)="savePassword()" novalidate>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Aktuelles Passwort</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="currentPassword"
+          autocomplete="current-password"
+          required
+        />
+        <mat-error>{{
+          fieldMessage(
+            password.controls.currentPassword,
+            'Bitte gib dein aktuelles Passwort ein.',
+            'Bitte prüfe dein Passwort.'
+          )
+        }}</mat-error>
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Neues Passwort</mat-label>
+        <input
+          matInput
+          type="password"
+          formControlName="newPassword"
+          autocomplete="new-password"
+          required
+        />
+        <mat-hint>Mindestens 8 Zeichen.</mat-hint>
+        <mat-error>{{
+          fieldMessage(
+            password.controls.newPassword,
+            'Bitte ein neues Passwort eingeben.',
+            'Das Passwort muss 8 bis 72 Zeichen lang sein.'
+          )
+        }}</mat-error>
+      </mat-form-field>
+      <button mat-flat-button type="submit" [disabled]="savingPassword()">
+        {{ savingPassword() ? 'Speichert…' : 'Passwort ändern' }}
+      </button>
+    </form>
+  </section>
+</div>
+
+<section class="box addresses" aria-labelledby="addresses-title">
+  <div class="head">
+    <h2 id="addresses-title">Meine Adressen</h2>
+    @if (editing() === null && canAddMore()) {
+      <button mat-stroked-button type="button" (click)="startNew()">Neue Adresse</button>
+    }
+  </div>
+  <p class="hint">
+    Beim Bestellen wählst du eine davon aus. Die Standardadresse ist vorausgewählt.
+  </p>
+
+  @if (addressesError(); as message) {
+    <p class="form-error" role="alert">
+      {{ message }}
+      <button mat-button type="button" (click)="loadAddresses()">Erneut versuchen</button>
+    </p>
+  }
+
+  @if (editing() !== null) {
+    <form class="address-editor" (ngSubmit)="saveAddress()" novalidate>
+      <h3>{{ editing() === 'neu' ? 'Neue Adresse' : 'Adresse bearbeiten' }}</h3>
+      @if (addressError(); as message) {
+        <p class="form-error" role="alert">{{ message }}</p>
+      }
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="label">
+        <mat-label>Bezeichnung (optional)</mat-label>
+        <input matInput [formControl]="label" placeholder="z. B. Zuhause, Arbeit" />
+        <mat-error>Höchstens 30 Zeichen.</mat-error>
+      </mat-form-field>
+      <app-address-fields [form]="addressForm" />
+      <mat-checkbox [formControl]="makeStandard">Als Standardadresse verwenden</mat-checkbox>
+      <div class="buttons">
+        <button mat-flat-button type="submit" [disabled]="savingAddress()">
+          {{ savingAddress() ? 'Speichert…' : 'Adresse speichern' }}
+        </button>
+        <button mat-button type="button" (click)="cancelEdit()">Abbrechen</button>
+      </div>
+    </form>
+  }
+
+  @if (addressesLoading()) {
+    <p class="hint">Adressen werden geladen…</p>
+  } @else if (addresses().length === 0 && editing() === null) {
+    <p>Du hast noch keine Adresse gespeichert.</p>
+  } @else {
+    <ul class="address-list">
+      @for (address of addresses(); track address.id) {
+        <li class="address" [class.standard]="address.standard">
+          <div>
+            <strong>{{ address.label || 'Adresse' }}</strong>
+            @if (address.standard) {
+              <span class="badge">Standard</span>
+            }
+            <p>
+              {{ address.name }}<br />
+              {{ address.street }}<br />
+              {{ address.postalCode }} {{ address.city }}
+            </p>
+          </div>
+          <div class="actions">
+            <button mat-button type="button" (click)="startEdit(address)">Bearbeiten</button>
+            @if (!address.standard) {
+              <button mat-button type="button" (click)="setStandard(address)">Als Standard</button>
+            }
+            <button mat-button type="button" class="delete" (click)="remove(address)">
+              Löschen
+            </button>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+  @if (!canAddMore()) {
+    <p class="hint">Du hast die Höchstzahl von 10 Adressen erreicht.</p>
+  }
+</section>

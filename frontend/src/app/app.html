@@ -3,11 +3,14 @@
   <!-- Links stehen oben, weil endloses Scrollen einen Footer unerreichbar macht (0001). -->
   <nav aria-label="Hauptmenü">
     <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Shop</a>
+    <a routerLink="/sale" routerLinkActive="active" class="sale-link">Sale</a>
     @if (auth.isAdmin()) {
       <a routerLink="/pflege" routerLinkActive="active">Pflege</a>
     }
     @if (auth.loggedIn()) {
       <a routerLink="/bestellungen" routerLinkActive="active">Meine Bestellungen</a>
+      <a routerLink="/retouren" routerLinkActive="active">Retouren</a>
+      <a routerLink="/konto" routerLinkActive="active">Mein Konto</a>
     }
     <a routerLink="/warenkorb" routerLinkActive="active" class="cart">
       Warenkorb

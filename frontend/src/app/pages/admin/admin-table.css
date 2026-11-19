@@ -103,3 +103,21 @@ tbody tr:last-child td {
   overflow: hidden;
   clip: rect(0 0 0 0);
 }
+
+.name .size {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--shop-muted);
+}
+
+.name .sale-tag {
+  display: inline-block;
+  margin-top: 0.2rem;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: #fde8e4;
+  color: #b3261e;
+  font-size: 0.8rem;
+  font-weight: 700;
+}

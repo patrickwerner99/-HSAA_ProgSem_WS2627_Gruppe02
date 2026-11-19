@@ -22,6 +22,16 @@ const product = (id: number, overrides: Partial<Product> = {}): Product => ({
   imageUrl: null,
   categoryId: 1,
   categoryName: 'Kreatin',
+  size: '500 g',
+  form: 'PULVER',
+  regularPrice: 24.9,
+  onSale: false,
+  savingPercent: 0,
+  salePrice: null,
+  saleFrom: null,
+  saleUntil: null,
+  returnedGoods: false,
+  ean: null,
   ...overrides,
 });
 
@@ -67,6 +77,42 @@ describe('CartPage', () => {
     fixture = TestBed.createComponent(CartPage);
     http.expectOne('/api/products/1').flush(product(1));
     await fixture.whenStable();
+    if (loggedIn) {
+      // Gespeicherte Adressen (E2); ohne welche: Vorbelegung aus der letzten Bestellung (0017)
+      http.expectOne('/api/account/addresses').flush(savedAddresses);
+      if (savedAddresses.length === 0) {
+        http
+          .expectOne((request) => request.url === '/api/orders')
+          .flush({
+            items: lastOrders,
+            page: 0,
+            size: 10,
+            totalItems: lastOrders.length,
+            last: true,
+          });
+      }
+      await fixture.whenStable();
+    }
+  }
+
+  let lastOrders: unknown[] = [];
+  let savedAddresses: unknown[] = [];
+  beforeEach(() => {
+    lastOrders = [];
+    savedAddresses = [];
+  });
+
+  const ADDRESS = {
+    name: 'Lena Muster',
+    street: 'Beethovenstraße 1',
+    postalCode: '73430',
+    city: 'Aalen',
+  };
+
+  /** Neue Adresse eingeben, ohne sie im Konto zu speichern. */
+  function fillAddress() {
+    fixture.componentInstance['address'].setValue({ ...ADDRESS });
+    fixture.componentInstance['saveNewAddress'].setValue(false);
   }
 
   const text = () => (fixture.nativeElement as HTMLElement).textContent ?? '';
@@ -75,7 +121,7 @@ describe('CartPage', () => {
 
   it('zeigt Preise vom Shop und die Summe', async () => {
     await setUp(true);
-    expect(text()).toContain('Produkt 1');
+    expect(text()).toContain('Produkt 1 (500 g)');
     expect(text()).toMatch(/49,80\s€/);
   });
 
@@ -93,19 +139,24 @@ describe('CartPage', () => {
     expect(cart.count()).toBe(2);
   });
 
-  it('schickt beim Bestellen nur ID und Menge, keinen Preis', async () => {
+  it('schickt beim Bestellen nur ID, Menge und Lieferadresse, keinen Preis', async () => {
     await setUp(true);
     vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fillAddress();
     orderButton().click();
 
     const request = http.expectOne('/api/orders');
-    expect(request.request.body).toEqual({ items: [{ productId: 1, quantity: 2 }] });
+    expect(request.request.body).toEqual({
+      items: [{ productId: 1, quantity: 2 }],
+      deliveryAddress: ADDRESS,
+    });
     request.flush({ id: 42 }, { status: 201, statusText: 'Created' });
     expect(cart.count()).toBe(0);
   });
 
   it('zeigt bei 409 den neuen Bestand an der Position', async () => {
     await setUp(true);
+    fillAddress();
     orderButton().click();
     http.expectOne('/api/orders').flush(
       {
@@ -121,5 +172,106 @@ describe('CartPage', () => {
     expect(text()).toContain('Inzwischen hat sich der Bestand geändert');
     expect(text()).toContain('Nur noch 1 verfügbar.');
     expect(orderButton().disabled).toBe(true);
+  });
+
+  it('bestellt ohne vollständige Lieferadresse nicht', async () => {
+    await setUp(true);
+    orderButton().click();
+    await fixture.whenStable();
+
+    http.expectNone('/api/orders');
+    expect(text()).toContain('Bitte gib eine vollständige Lieferadresse an.');
+  });
+
+  it('übernimmt die Adresse der letzten Bestellung', async () => {
+    lastOrders = [{ id: 7, deliveryAddress: ADDRESS }];
+    await setUp(true);
+
+    expect(fixture.componentInstance['address'].getRawValue()).toEqual(ADDRESS);
+    expect(text()).toContain('Aus deiner letzten Bestellung übernommen');
+  });
+
+  it('zeigt Feldfehler des Backends an der Adresse', async () => {
+    await setUp(true);
+    fillAddress();
+    orderButton().click();
+    http.expectOne('/api/orders').flush(
+      {
+        status: 400,
+        detail: 'Bitte prüfe die markierten Felder.',
+        errors: [
+          { field: 'deliveryAddress.postalCode', message: 'Die Postleitzahl hat genau 5 Ziffern.' },
+        ],
+      },
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+
+    expect(text()).toContain('Bitte prüfe die Lieferadresse.');
+    expect(fixture.componentInstance['address'].controls.postalCode.errors).toEqual({
+      server: 'Die Postleitzahl hat genau 5 Ziffern.',
+    });
+  });
+
+  it('wählt die Standardadresse aus dem Konto und schickt nur ihre ID', async () => {
+    savedAddresses = [
+      { id: 3, label: 'Arbeit', standard: false, ...ADDRESS },
+      { id: 4, label: 'Zuhause', standard: true, ...ADDRESS },
+    ];
+    await setUp(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    expect(text()).toContain('Zuhause');
+
+    orderButton().click();
+    const request = http.expectOne('/api/orders');
+    expect(request.request.body).toEqual({ items: [{ productId: 1, quantity: 2 }], addressId: 4 });
+  });
+
+  it('speichert eine neue Adresse auf Wunsch zuerst im Konto', async () => {
+    await setUp(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.componentInstance['address'].setValue({ ...ADDRESS });
+
+    orderButton().click();
+    const save = http.expectOne('/api/account/addresses');
+    expect(save.request.method).toBe('POST');
+    save.flush({ id: 9, label: null, standard: true, ...ADDRESS });
+    const request = http.expectOne('/api/orders');
+    expect(request.request.body).toEqual({ items: [{ productId: 1, quantity: 2 }], addressId: 9 });
+  });
+
+  it('löst einen Rabattcode ein, zeigt den Rabatt und schickt den Code mit', async () => {
+    await setUp(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.componentInstance['codeInput'].setValue('hyrox10');
+    fixture.componentInstance['applyCode']();
+    http
+      .expectOne('/api/discount-codes/hyrox10')
+      .flush({ code: 'HYROX10', percent: 10, validUntil: '2026-12-31' });
+    await fixture.whenStable();
+
+    expect(text()).toContain('HYROX10');
+    expect(text()).toMatch(/44,82\s€/);
+
+    fillAddress();
+    orderButton().click();
+    const request = http.expectOne('/api/orders');
+    expect(request.request.body.discountCode).toBe('HYROX10');
+  });
+
+  it('zeigt, warum ein Rabattcode nicht gilt', async () => {
+    await setUp(true);
+    fixture.componentInstance['codeInput'].setValue('SOMMER20');
+    fixture.componentInstance['applyCode']();
+    http
+      .expectOne('/api/discount-codes/SOMMER20')
+      .flush(
+        { status: 409, detail: 'Dieser Rabattcode ist abgelaufen.' },
+        { status: 409, statusText: 'Conflict' },
+      );
+    await fixture.whenStable();
+
+    expect(text()).toContain('Dieser Rabattcode ist abgelaufen.');
+    expect(text()).toMatch(/49,80\s€/);
   });
 });

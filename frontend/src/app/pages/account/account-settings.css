@@ -1,0 +1,114 @@
+.sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.box {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--shop-border);
+  border-radius: 1rem;
+  background: var(--shop-card);
+}
+
+.box h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-error {
+  margin: 0 0 1rem;
+  color: var(--stock-out);
+  font-weight: 600;
+}
+
+.hint {
+  margin: 0 0 1rem;
+  color: var(--shop-muted);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.head h2 {
+  margin: 0;
+}
+
+.address-editor {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 2px dashed var(--shop-border);
+  border-radius: 0.75rem;
+}
+
+.address-editor h3 {
+  margin: 0;
+}
+
+.address-editor .label {
+  max-width: 20rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.address-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.address {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--shop-border);
+  border-radius: 0.75rem;
+  background: #fff;
+}
+
+.address.standard {
+  border: 2px solid var(--shop-dark);
+}
+
+.address p {
+  margin: 0.5rem 0 0;
+  line-height: 1.5;
+}
+
+.badge {
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--shop-accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.delete {
+  color: var(--stock-out);
+}

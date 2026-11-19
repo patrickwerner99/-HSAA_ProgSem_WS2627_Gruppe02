@@ -1,5 +1,6 @@
 package de.hsaa.shop.order;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -18,12 +19,18 @@ import org.springframework.transaction.annotation.Transactional;
 import de.hsaa.shop.account.AppUser;
 import de.hsaa.shop.account.CurrentUser;
 import de.hsaa.shop.account.Role;
+import de.hsaa.shop.account.SavedAddress;
+import de.hsaa.shop.account.SavedAddressRepository;
 import de.hsaa.shop.common.ConflictException;
 import de.hsaa.shop.common.ForbiddenException;
 import de.hsaa.shop.common.InvalidFieldException;
 import de.hsaa.shop.common.NotFoundException;
 import de.hsaa.shop.common.PageResponse;
+import de.hsaa.shop.common.ShopTime;
+import de.hsaa.shop.discount.DiscountCode;
+import de.hsaa.shop.discount.DiscountService;
 import de.hsaa.shop.order.OrderDtos.CustomerInfo;
+import de.hsaa.shop.order.OrderDtos.DeliveryAddressResponse;
 import de.hsaa.shop.order.OrderDtos.OrderItemRequest;
 import de.hsaa.shop.order.OrderDtos.OrderLineResponse;
 import de.hsaa.shop.order.OrderDtos.OrderRequest;
@@ -33,7 +40,7 @@ import de.hsaa.shop.product.Product;
 import de.hsaa.shop.product.ProductRepository;
 
 /**
- * Bestellen und Bestellungen verwalten (docs/anforderungen/0009–0011).
+ * Bestellen und Bestellungen verwalten (docs/anforderungen/0009–0011, Lieferadresse 0017).
  * Kunden sehen und stornieren nur ihre eigenen Bestellungen, Admins sehen alle und ändern den Status.
  */
 @Service
@@ -46,11 +53,16 @@ public class OrderService {
 	private final ShopOrderRepository orders;
 	private final ProductRepository products;
 	private final CurrentUser currentUser;
+	private final SavedAddressRepository addresses;
+	private final DiscountService discounts;
 
-	public OrderService(ShopOrderRepository orders, ProductRepository products, CurrentUser currentUser) {
+	public OrderService(ShopOrderRepository orders, ProductRepository products, CurrentUser currentUser,
+			SavedAddressRepository addresses, DiscountService discounts) {
+		this.discounts = discounts;
 		this.orders = orders;
 		this.products = products;
 		this.currentUser = currentUser;
+		this.addresses = addresses;
 	}
 
 	/**
@@ -59,6 +71,7 @@ public class OrderService {
 	 */
 	public OrderResponse place(OrderRequest request) {
 		AppUser customer = currentUser.require();
+		DeliveryAddress address = deliveryAddressFor(request, customer);
 
 		// Gleiches Produkt mehrfach im Warenkorb → Mengen zusammenzählen.
 		Map<Long, Integer> wanted = new LinkedHashMap<>();
@@ -86,13 +99,44 @@ public class OrderService {
 			throw new OutOfStockException(problems);
 		}
 
-		ShopOrder order = new ShopOrder(customer);
+		// Rabattcode vor dem Abziehen des Bestands prüfen: ist er ungültig, ändert sich gar nichts (G2).
+		DiscountCode code = request.discountCode() == null || request.discountCode().isBlank() ? null
+				: discounts.redeem(request.discountCode());
+
+		LocalDate today = ShopTime.today();
+		ShopOrder order = new ShopOrder(customer, address);
 		wanted.forEach((productId, quantity) -> {
 			Product product = found.get(productId);
 			product.setStock(product.getStock() - quantity);
-			order.addLine(new OrderLine(product.getId(), product.getName(), product.getPrice(), quantity));
+			// Preis, den Kunden heute zahlen: im Sale der Sale-Preis (G1). Er wird in die Position kopiert (E3).
+			order.addLine(new OrderLine(product.getId(), lineName(product), product.currentPrice(today), quantity));
 		});
+		if (code != null) {
+			order.applyDiscount(code.getCode(), code.getPercent());
+		}
 		return toResponse(orders.save(order), customer);
+	}
+
+	/**
+	 * Gespeicherte Adresse aus dem Konto (E2) oder direkt eingegebene Adresse; beides wird in die
+	 * Bestellung kopiert (ADR-0009). Fremde Adress-IDs sehen aus wie nicht vorhanden.
+	 */
+	private DeliveryAddress deliveryAddressFor(OrderRequest request, AppUser customer) {
+		if (request.addressId() != null) {
+			SavedAddress saved = addresses.findByIdAndOwnerId(request.addressId(), customer.getId())
+					.orElseThrow(() -> new InvalidFieldException("addressId", "Diese Adresse gibt es nicht (mehr)."));
+			return new DeliveryAddress(saved.getName(), saved.getStreet(), saved.getPostalCode(), saved.getCity());
+		}
+		if (request.deliveryAddress() != null) {
+			return request.deliveryAddress().toAddress();
+		}
+		throw new InvalidFieldException("deliveryAddress", "Bitte gib eine Lieferadresse an.");
+	}
+
+	/** Name mit Packungsgröße in die Position kopieren, z. B. "Whey Protein Schoko (1 kg)" (0018). */
+	private static String lineName(Product product) {
+		String name = product.getDisplayName();
+		return name.length() <= 100 ? name : name.substring(0, 100);
 	}
 
 	/** Kunden: eigene Bestellungen. Admins: alle. Neueste zuerst, optional nach Status gefiltert. */
@@ -191,6 +235,7 @@ public class OrderService {
 
 		return new OrderResponse(order.getId(), order.getCreatedAt(), order.getUpdatedAt(), order.getStatus(),
 				order.getTotal(), itemCount, new CustomerInfo(customer.getId(), customer.getName(), customer.getEmail()),
-				lines, allowed);
+				DeliveryAddressResponse.from(order.getDeliveryAddress()), lines, allowed, order.getSubtotal(),
+				order.getDiscountCode(), order.getDiscountPercent(), order.getDiscountAmount());
 	}
 }

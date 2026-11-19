@@ -1,4 +1,11 @@
-<h1>Unser Sortiment</h1>
+@if (saleOnly) {
+  <h1>Sale</h1>
+  <p class="intro">
+    Reduzierte Produkte, nur für kurze Zeit, und originalverschlossene Rückläufer zum kleinen Preis.
+  </p>
+} @else {
+  <h1>Unser Sortiment</h1>
+}
 
 <section class="filters">
   <mat-form-field appearance="outline" class="search" subscriptSizing="dynamic">
@@ -7,6 +14,15 @@
   </mat-form-field>
 
   <div class="options">
+    <mat-form-field appearance="outline" class="form-filter" subscriptSizing="dynamic">
+      <mat-label>Produktart</mat-label>
+      <mat-select [value]="selectedForm()" (selectionChange)="selectForm($event.value)">
+        <mat-option [value]="null">Alle Produktarten</mat-option>
+        @for (option of formOptions; track option.value) {
+          <mat-option [value]="option.value">{{ option.plural }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
     <mat-form-field appearance="outline" class="sort" subscriptSizing="dynamic">
       <mat-label>Sortieren nach</mat-label>
       <mat-select [value]="sort()" (selectionChange)="selectSort($event.value)">
@@ -67,7 +83,13 @@
           Filter zurücksetzen
         </button>
       } @else {
-        <p>Noch keine Produkte vorhanden.</p>
+        <p>
+          {{
+            saleOnly
+              ? 'Gerade ist nichts im Sale. Schau bald wieder vorbei!'
+              : 'Noch keine Produkte vorhanden.'
+          }}
+        </p>
       }
     </div>
   }
@@ -82,6 +104,9 @@
             appFallbackImage
             loading="lazy"
           />
+          @if (product.onSale && product.savingPercent > 0) {
+            <span class="sale-badge">−{{ product.savingPercent }} %</span>
+          }
           @if (product.stockStatus === 'SOLD_OUT') {
             <span class="badge">Ausverkauft</span>
           } @else if (product.stockStatus === 'LOW_STOCK') {
@@ -91,7 +116,18 @@
         <div class="info">
           <span class="category">{{ product.categoryName }}</span>
           <h2>{{ product.name }}</h2>
-          <span class="price">{{ product.price | currency }}</span>
+          @if (product.size) {
+            <span class="size">{{ product.size }}</span>
+          }
+          @if (product.returnedGoods) {
+            <span class="returned">Retourenware, originalverschlossen</span>
+          }
+          <span class="price" [class.sale]="product.onSale">
+            {{ product.price | currency }}
+            @if (product.onSale) {
+              <s class="regular">{{ product.regularPrice | currency }}</s>
+            }
+          </span>
         </div>
       </a>
     }

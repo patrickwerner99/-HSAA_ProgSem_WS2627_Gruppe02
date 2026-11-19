@@ -7,6 +7,7 @@ import { adminGuard, authGuard } from './shared/auth';
 // Jede Ansicht hat eine eigene Adresse, Filter stehen als ?… dahinter (C2).
 export const routes: Routes = [
   { path: '', component: ProductListPage, title: 'Hyrox-Shop' },
+  { path: 'sale', component: ProductListPage, data: { sale: true }, title: 'Sale | Hyrox-Shop' },
   {
     path: 'produkte/:id',
     loadComponent: () =>
@@ -39,6 +40,19 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/orders/order-detail').then((m) => m.OrderDetailPage),
     title: 'Bestellung | Hyrox-Shop',
+  },
+  {
+    path: 'retouren',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/orders/my-returns').then((m) => m.MyReturnsPage),
+    title: 'Meine Retouren | Hyrox-Shop',
+  },
+  {
+    path: 'konto',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/account/account-settings').then((m) => m.AccountSettingsPage),
+    title: 'Mein Konto | Hyrox-Shop',
   },
   { path: 'pflege', pathMatch: 'full', redirectTo: 'pflege/produkte' },
   {

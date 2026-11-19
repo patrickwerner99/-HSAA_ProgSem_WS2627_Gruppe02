@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="ENERGIERIEGEL Banane">
+  <rect width="400" height="400" fill="#f2d75c"/>
+  <circle cx="330" cy="70" r="140" fill="#ffffff" opacity="0.12"/>
+  <polygon points="40,150 60,140 60,260 40,250" fill="#15181c"/>
+  <polygon points="360,150 340,140 340,260 360,250" fill="#15181c"/>
+  <rect x="60" y="140" width="280" height="120" rx="10" fill="#15181c"/>
+  <rect x="60" y="205" width="280" height="40" fill="#f2c230"/>
+  <text x="200" y="185" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#f3f1eb" text-anchor="middle" letter-spacing="1">ENERGIERIEGEL</text>
+  <text x="200" y="233" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#15181c" text-anchor="middle">BANANE</text>
+  <text x="200" y="300" font-family="Arial, sans-serif" font-size="14" fill="#15181c" text-anchor="middle" opacity="0.7">HYROX-SHOP</text>
+  <text x="200" y="378" font-family="Arial, sans-serif" font-size="16" font-weight="700" fill="#15181c" text-anchor="middle" opacity="0.8">Banane</text>
+</svg>

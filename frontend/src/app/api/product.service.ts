@@ -1,7 +1,15 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { PageResponse, Product, ProductInput, ProductSort } from './models';
+import {
+  PageResponse,
+  Product,
+  ProductForm,
+  ProductInput,
+  ProductSort,
+  SaleInput,
+  Nutrition,
+} from './models';
 
 /** Eine Ladung beim endlosen Scrollen (ADR-0002), passend zum Backend. */
 export const PAGE_SIZE = 12;
@@ -9,8 +17,11 @@ export const PAGE_SIZE = 12;
 export interface ProductQuery {
   q?: string | null;
   categoryId?: number | null;
+  form?: ProductForm | null;
   sort?: ProductSort;
   inStock?: boolean;
+  /** nur Produkte im Sale (G1) */
+  sale?: boolean;
   page?: number;
   size?: number;
 }
@@ -31,17 +42,28 @@ export class ProductService {
     if (query.categoryId != null) {
       params = params.set('categoryId', query.categoryId);
     }
+    if (query.form) {
+      params = params.set('form', query.form);
+    }
     if (query.sort && query.sort !== 'name') {
       params = params.set('sort', query.sort);
     }
     if (query.inStock) {
       params = params.set('inStock', true);
     }
+    if (query.sale) {
+      params = params.set('sale', true);
+    }
     return this.http.get<PageResponse<Product>>('/api/products', { params });
   }
 
   get(id: number): Observable<Product> {
     return this.http.get<Product>(`/api/products/${id}`);
+  }
+
+  /** Nährwerte aus Open Food Facts (H1). 404 = keine, 503 = gerade nicht erreichbar (H2). */
+  nutrition(id: number): Observable<Nutrition> {
+    return this.http.get<Nutrition>(`/api/products/${id}/nutrition`);
   }
 
   create(input: ProductInput): Observable<Product> {
@@ -67,6 +89,15 @@ export class ProductService {
     const body = new FormData();
     body.append('file', file);
     return this.http.post<Product>(`/api/products/${id}/image`, body);
+  }
+
+  /** In den Sale stellen bzw. Zeitraum ändern (G1, nur Admin). */
+  startSale(id: number, sale: SaleInput): Observable<Product> {
+    return this.http.put<Product>(`/api/products/${id}/sale`, sale);
+  }
+
+  endSale(id: number): Observable<Product> {
+    return this.http.delete<Product>(`/api/products/${id}/sale`);
   }
 
   removeImage(id: number): Observable<Product> {

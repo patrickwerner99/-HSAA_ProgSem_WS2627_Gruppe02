@@ -17,7 +17,8 @@
   gap: 0.75rem 1.5rem;
 }
 
-.sort {
+.sort,
+.form-filter {
   width: 14rem;
 }
 
@@ -129,6 +130,11 @@ h2 {
   font-size: 1.1rem;
 }
 
+.size {
+  font-size: 0.9rem;
+  color: var(--shop-muted);
+}
+
 .price {
   font-size: 1.15rem;
   font-weight: 800;
@@ -159,4 +165,37 @@ h2 {
 
 .badge.low {
   background: var(--stock-low);
+}
+
+.intro {
+  margin: -0.5rem 0 1rem;
+  color: var(--shop-muted);
+}
+
+.sale-badge {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: #b3261e;
+  color: #fff;
+  font-weight: 800;
+}
+
+.price.sale {
+  color: #b3261e;
+}
+
+.price .regular {
+  margin-left: 0.4rem;
+  color: var(--shop-muted);
+  font-size: 0.9rem;
+  font-weight: 400;
+}
+
+.returned {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f6e56;
 }

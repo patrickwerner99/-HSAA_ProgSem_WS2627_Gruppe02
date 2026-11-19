@@ -38,6 +38,18 @@
         <dd>{{ order.customer.name }} ({{ order.customer.email }})</dd>
       </div>
     }
+    <div>
+      <dt>Lieferadresse</dt>
+      @if (order.deliveryAddress; as address) {
+        <dd class="address">
+          {{ address.name }}<br />
+          {{ address.street }}<br />
+          {{ address.postalCode }} {{ address.city }}
+        </dd>
+      } @else {
+        <dd class="muted">Keine Adresse hinterlegt (ältere Bestellung)</dd>
+      }
+    </div>
   </dl>
 
   <div class="table-wrap">
@@ -61,6 +73,18 @@
         }
       </tbody>
       <tfoot>
+        @if (order.discountAmount) {
+          <tr>
+            <th scope="row" colspan="3">Zwischensumme</th>
+            <td class="num">{{ order.subtotal | currency }}</td>
+          </tr>
+          <tr>
+            <th scope="row" colspan="3">
+              Rabattcode {{ order.discountCode }} (−{{ order.discountPercent }} %)
+            </th>
+            <td class="num">−{{ order.discountAmount | currency }}</td>
+          </tr>
+        }
         <tr>
           <th scope="row" colspan="3">Gesamt</th>
           <td class="num total">{{ order.total | currency }}</td>
@@ -109,6 +133,72 @@
       >
         Bestellung stornieren
       </button>
+    </section>
+  }
+
+  @if (returns().length > 0) {
+    <section class="returns">
+      <h2>Retouren</h2>
+      @for (r of returns(); track r.id) {
+        <app-return-card [productReturn]="r" [showCustomer]="isAdmin()" />
+      }
+    </section>
+  }
+
+  @if (canReturn()) {
+    <section class="actions">
+      @if (!returnFormOpen()) {
+        <p class="hint">
+          Etwas passt nicht? Du kannst Ware bis 30 Tage nach der Zustellung zurückschicken.
+        </p>
+        <button mat-stroked-button type="button" (click)="openReturnForm()">
+          Ware zurückschicken
+        </button>
+      } @else {
+        <h2>Ware zurückschicken</h2>
+        @if (returnError(); as message) {
+          <p class="form-error" role="alert">{{ message }}</p>
+        }
+        <ul class="return-items">
+          @for (line of order.lines; track line.productId) {
+            @if ((returnable()[line.productId] ?? 0) > 0) {
+              <li>
+                <label>
+                  <input
+                    type="number"
+                    min="0"
+                    [max]="returnable()[line.productId]"
+                    [value]="returnQuantities()[line.productId] ?? 0"
+                    (input)="setReturnQuantity(line.productId, $any($event.target).value)"
+                  />
+                  von {{ returnable()[line.productId] }} × {{ line.productName }}
+                </label>
+              </li>
+            }
+          }
+        </ul>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic" class="reason">
+          <mat-label>Grund</mat-label>
+          <textarea
+            matInput
+            [formControl]="returnReason"
+            rows="2"
+            placeholder="z. B. falsche Sorte bestellt"
+          ></textarea>
+          <mat-error>Bitte gib einen Grund an (höchstens 500 Zeichen).</mat-error>
+        </mat-form-field>
+        <p class="hint">
+          Weil es Lebensmittel sind, nehmen wir nur <strong>originalverschlossene</strong> Ware mit
+          intaktem Siegel zurück. Geöffnete Produkte erstatten wir nur bei Mängeln (z. B. beschädigt
+          angekommen oder falsch geliefert). Erstattet wird der bezahlte Preis.
+        </p>
+        <div class="buttons">
+          <button mat-flat-button type="button" [disabled]="sendingReturn()" (click)="sendReturn()">
+            {{ sendingReturn() ? 'Wird gesendet…' : 'Retoure anmelden' }}
+          </button>
+          <button mat-button type="button" (click)="returnFormOpen.set(false)">Abbrechen</button>
+        </div>
+      }
     </section>
   }
 }

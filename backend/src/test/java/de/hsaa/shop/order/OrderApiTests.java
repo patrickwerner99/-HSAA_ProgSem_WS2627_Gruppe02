@@ -1,5 +1,6 @@
 package de.hsaa.shop.order;
 
+import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -58,6 +59,11 @@ class OrderApiTests {
 		users.save(new AppUser("markus@example.de", "Markus", passwordEncoder.encode("geheim1234"), Role.CUSTOMER));
 	}
 
+	/** Gültige Lieferadresse, die jede Test-Bestellung mitschickt (0017). */
+	private static final String ADDRESS = """
+			"deliveryAddress": { "name": "Lena Muster", "street": "Beethovenstraße 1",
+			  "postalCode": "73430", "city": "Aalen" }""";
+
 	private static RequestPostProcessor lena() {
 		return user("lena@example.de").roles("CUSTOMER");
 	}
@@ -75,7 +81,7 @@ class OrderApiTests {
 	}
 
 	private String order(Product product, int quantity) {
-		return "{ \"items\": [ { \"productId\": %d, \"quantity\": %d } ] }".formatted(product.getId(), quantity);
+		return ("{ \"items\": [ { \"productId\": %d, \"quantity\": %d } ], " + ADDRESS + " }").formatted(product.getId(), quantity);
 	}
 
 	private long placeOrder(RequestPostProcessor who, Product product, int quantity) throws Exception {
@@ -103,13 +109,14 @@ class OrderApiTests {
 		// Der Browser schickt einen gefälschten Preis mit, der Server ignoriert ihn.
 		mvc.perform(post("/api/orders").with(lena())
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{ \"items\": [ { \"productId\": %d, \"quantity\": 2, \"price\": 0.01 } ], \"total\": 0.02 }"
+					.content(("{ \"items\": [ { \"productId\": %d, \"quantity\": 2, \"price\": 0.01 } ], \"total\": 0.02, " + ADDRESS + " }")
 							.formatted(kreatin.getId())))
 			.andExpect(status().isCreated())
 			.andExpect(header().exists("Location"))
 			.andExpect(jsonPath("$.status").value("RECEIVED"))
 			.andExpect(jsonPath("$.total").value(49.8))
 			.andExpect(jsonPath("$.lines[0].unitPrice").value(24.9))
+			.andExpect(jsonPath("$.lines[0].productName").value("Kreatin Neutral (500 g)"))
 			.andExpect(jsonPath("$.itemCount").value(2));
 
 		assertEquals(before - 2, product("Kreatin Neutral").getStock());
@@ -120,7 +127,7 @@ class OrderApiTests {
 		Product kreatin = product("Kreatin Neutral");
 		mvc.perform(post("/api/orders").with(lena())
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{ \"items\": [ { \"productId\": %d, \"quantity\": 1 }, { \"productId\": %d, \"quantity\": 2 } ] }"
+					.content(("{ \"items\": [ { \"productId\": %d, \"quantity\": 1 }, { \"productId\": %d, \"quantity\": 2 } ], " + ADDRESS + " }")
 							.formatted(kreatin.getId(), kreatin.getId())))
 			.andExpect(status().isCreated())
 			.andExpect(jsonPath("$.lines.length()").value(1))
@@ -130,7 +137,7 @@ class OrderApiTests {
 	@Test
 	void emptyCartIsRejected() throws Exception {
 		mvc.perform(post("/api/orders").with(lena())
-					.contentType(MediaType.APPLICATION_JSON).content("{ \"items\": [] }"))
+					.contentType(MediaType.APPLICATION_JSON).content("{ \"items\": [], " + ADDRESS + " }"))
 			.andExpect(status().isBadRequest());
 	}
 
@@ -139,6 +146,47 @@ class OrderApiTests {
 		mvc.perform(post("/api/orders").with(lena())
 					.contentType(MediaType.APPLICATION_JSON).content(order(product("Kreatin Neutral"), 0)))
 			.andExpect(status().isBadRequest());
+	}
+
+	// ---- 0017: Lieferadresse ----
+
+	@Test
+	void deliveryAddressIsSavedAndShown() throws Exception {
+		long id = placeOrder(lena(), product("EAA Mango"), 1);
+		mvc.perform(get("/api/orders/" + id).with(lena()))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.deliveryAddress.name").value("Lena Muster"))
+			.andExpect(jsonPath("$.deliveryAddress.street").value("Beethovenstraße 1"))
+			.andExpect(jsonPath("$.deliveryAddress.postalCode").value("73430"))
+			.andExpect(jsonPath("$.deliveryAddress.city").value("Aalen"));
+	}
+
+	@Test
+	void orderWithoutAddressIsRejectedAndNothingChanges() throws Exception {
+		Product mango = product("EAA Mango");
+		int before = mango.getStock();
+		mvc.perform(post("/api/orders").with(lena())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{ \"items\": [ { \"productId\": %d, \"quantity\": 1 } ] }".formatted(mango.getId())))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[0].field").value("deliveryAddress"));
+		assertEquals(before, product("EAA Mango").getStock());
+	}
+
+	@Test
+	void invalidAddressFieldsAreReported() throws Exception {
+		mvc.perform(post("/api/orders").with(lena())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{ "items": [ { "productId": %d, "quantity": 1 } ],
+							  "deliveryAddress": { "name": "Lena", "street": "Beethovenstraße",
+							    "postalCode": "7343", "city": "" } }
+							""".formatted(product("EAA Mango").getId())))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[*].field", hasItem("deliveryAddress.street")))
+			.andExpect(jsonPath("$.errors[*].field", hasItem("deliveryAddress.postalCode")))
+			.andExpect(jsonPath("$.errors[*].field", hasItem("deliveryAddress.city")))
+			.andExpect(jsonPath("$.errors[*].message", hasItem("Die Postleitzahl hat genau 5 Ziffern.")));
 	}
 
 	// ---- B2: nichts verkaufen, was nicht auf Lager ist ----
@@ -151,7 +199,7 @@ class OrderApiTests {
 
 		mvc.perform(post("/api/orders").with(lena())
 					.contentType(MediaType.APPLICATION_JSON)
-					.content("{ \"items\": [ { \"productId\": %d, \"quantity\": 1 }, { \"productId\": %d, \"quantity\": 5 } ] }"
+					.content(("{ \"items\": [ { \"productId\": %d, \"quantity\": 1 }, { \"productId\": %d, \"quantity\": 5 } ], " + ADDRESS + " }")
 							.formatted(neutral.getId(), zitrone.getId())))
 			.andExpect(status().isConflict())
 			.andExpect(jsonPath("$.items[0].productName").value("Kreatin Zitrone"))

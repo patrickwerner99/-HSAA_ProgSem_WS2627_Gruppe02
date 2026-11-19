@@ -24,6 +24,31 @@
 
     <div class="row">
       <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Produktart</mat-label>
+        <mat-select formControlName="form" required>
+          @for (option of formOptions; track option.value) {
+            <mat-option [value]="option.value">{{ option.label }}</mat-option>
+          }
+        </mat-select>
+        <mat-error>{{ messageFor('form', form.controls.form) }}</mat-error>
+      </mat-form-field>
+
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>Größe (optional)</mat-label>
+        <input matInput formControlName="size" placeholder="z. B. 1 kg, 330 ml" />
+        <mat-error>{{ messageFor('size', form.controls.size) }}</mat-error>
+      </mat-form-field>
+    </div>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>Barcode / EAN (optional)</mat-label>
+      <input matInput formControlName="ean" inputmode="numeric" placeholder="z. B. 4058172511097" />
+      <mat-hint>Damit zeigt die Produktseite Nährwerte aus Open Food Facts.</mat-hint>
+      <mat-error>{{ messageFor('ean', form.controls.ean) }}</mat-error>
+    </mat-form-field>
+
+    <div class="row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
         <mat-label>Preis</mat-label>
         <input matInput formControlName="price" inputmode="decimal" placeholder="34,90" required />
         <span matTextSuffix>&nbsp;€</span>
@@ -44,6 +69,32 @@
       <mat-hint align="end">{{ form.controls.description.value.length }} / 1000</mat-hint>
       <mat-error>{{ messageFor('description', form.controls.description) }}</mat-error>
     </mat-form-field>
+
+    <section class="sale-block" aria-labelledby="sale-title">
+      <h3 id="sale-title">Sale (optional)</h3>
+      <p class="hint">
+        Reduzierter Preis für einen Zeitraum; beide Tage zählen mit. Zum Beenden den Sale-Preis
+        leeren.
+      </p>
+      <div class="row three">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>Sale-Preis</mat-label>
+          <input matInput formControlName="salePrice" inputmode="decimal" placeholder="29,90" />
+          <span matTextSuffix>&nbsp;€</span>
+          <mat-error>{{ messageFor('price', form.controls.salePrice) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>von</mat-label>
+          <input matInput type="date" formControlName="saleFrom" />
+          <mat-error>{{ messageFor('saleFrom', form.controls.saleFrom) }}</mat-error>
+        </mat-form-field>
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>bis</mat-label>
+          <input matInput type="date" formControlName="saleUntil" />
+          <mat-error>{{ messageFor('saleUntil', form.controls.saleUntil) }}</mat-error>
+        </mat-form-field>
+      </div>
+    </section>
 
     <section class="image-block" aria-labelledby="image-title">
       <h3 id="image-title">Produktbild</h3>

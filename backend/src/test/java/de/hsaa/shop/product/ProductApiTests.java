@@ -1,7 +1,9 @@
 package de.hsaa.shop.product;
 
+import static org.hamcrest.Matchers.everyItem;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -62,26 +64,27 @@ class ProductApiTests {
 	private String validProduct(long categoryId) {
 		return """
 				{ "name": "Kreatin Mango", "description": "Test", "price": 24.9, "stock": 10,
-				  "imageUrl": "/images/kreatin-neutral.svg", "categoryId": %d }
+				  "imageUrl": "/images/kreatin-neutral.svg", "categoryId": %d,
+				  "size": "500 g", "form": "PULVER" }
 				""".formatted(categoryId);
 	}
 
 	// ---- 0001 Produktliste ----
 
 	@Test
-	void firstLoadReturnsTwelveOfThirteenSampleProducts() throws Exception {
+	void firstLoadReturnsTwelveOfThirtyOneSampleProducts() throws Exception {
 		mvc.perform(get("/api/products"))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.items", hasSize(12)))
-			.andExpect(jsonPath("$.totalItems").value(13))
+			.andExpect(jsonPath("$.totalItems").value(31))
 			.andExpect(jsonPath("$.last").value(false));
 	}
 
 	@Test
-	void secondLoadReturnsTheRest() throws Exception {
-		mvc.perform(get("/api/products").param("page", "1"))
+	void thirdLoadReturnsTheRest() throws Exception {
+		mvc.perform(get("/api/products").param("page", "2"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.items", hasSize(1)))
+			.andExpect(jsonPath("$.items", hasSize(7)))
 			.andExpect(jsonPath("$.last").value(true));
 	}
 
@@ -89,17 +92,17 @@ class ProductApiTests {
 	void searchIgnoresCase() throws Exception {
 		mvc.perform(get("/api/products").param("q", "WHEY"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.totalItems").value(4));
+			.andExpect(jsonPath("$.totalItems").value(6));
 	}
 
 	@Test
 	void searchAndCategoryCombine() throws Exception {
 		mvc.perform(get("/api/products")
-					.param("q", "schoko")
+					.param("q", "cookies")
 					.param("categoryId", String.valueOf(categoryId("Protein"))))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.totalItems").value(1))
-			.andExpect(jsonPath("$.items[0].name").value("Whey Protein Schoko"));
+			.andExpect(jsonPath("$.items[0].name").value("Whey Protein Cookies"));
 	}
 
 	@Test
@@ -116,14 +119,16 @@ class ProductApiTests {
 	void sortByPriceDescending() throws Exception {
 		mvc.perform(get("/api/products").param("sort", "price-desc"))
 			.andExpect(status().isOk())
-			.andExpect(jsonPath("$.items[0].price").value(39.9))
-			.andExpect(jsonPath("$.items[0].name").value("Hyrox-Supplement Beere"));
+			.andExpect(jsonPath("$.items[0].price").value(74.9))
+			.andExpect(jsonPath("$.items[0].name").value("Whey Protein Schoko"))
+			.andExpect(jsonPath("$.items[0].size").value("2,5 kg"));
 	}
 
 	@Test
 	void sortByPriceAscending() throws Exception {
 		mvc.perform(get("/api/products").param("sort", "price-asc"))
-			.andExpect(jsonPath("$.items[0].price").value(24.9));
+			.andExpect(jsonPath("$.items[0].price").value(1.99))
+			.andExpect(jsonPath("$.items[0].name").value("Energy-Gel Cola"));
 	}
 
 	@Test
@@ -138,7 +143,7 @@ class ProductApiTests {
 	@Test
 	void inStockOnlyHidesSoldOutProducts() throws Exception {
 		mvc.perform(get("/api/products").param("inStock", "true").param("size", "50"))
-			.andExpect(jsonPath("$.totalItems").value(12))
+			.andExpect(jsonPath("$.totalItems").value(29))
 			.andExpect(jsonPath("$.items[*].stockStatus", not(hasItem("SOLD_OUT"))));
 	}
 
@@ -147,6 +152,64 @@ class ProductApiTests {
 		mvc.perform(get("/api/products").param("sort", "billig"))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.errors[0].field").value("sort"));
+	}
+
+	// ---- 0018 Packungsgrößen, 0019 Produktart ----
+
+	@Test
+	void filterByFormShowsOnlyBars() throws Exception {
+		mvc.perform(get("/api/products").param("form", "RIEGEL").param("size", "50"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.totalItems").value(4))
+			.andExpect(jsonPath("$.items[*].form", everyItem(is("RIEGEL"))));
+	}
+
+	@Test
+	void formCategoryAndSortCombine() throws Exception {
+		mvc.perform(get("/api/products")
+					.param("form", "getraenk")
+					.param("categoryId", String.valueOf(categoryId("Protein")))
+					.param("sort", "price-asc"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.totalItems").value(2))
+			.andExpect(jsonPath("$.items[0].name").value("Proteinshake Schoko"))
+			.andExpect(jsonPath("$.items[0].size").value("330 ml"));
+	}
+
+	@Test
+	void unknownFormIsRejected() throws Exception {
+		mvc.perform(get("/api/products").param("form", "Kekse"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[0].field").value("form"));
+	}
+
+	@Test
+	void sameProductInSeveralSizes() throws Exception {
+		mvc.perform(get("/api/products").param("q", "Whey Protein Schoko").param("sort", "price-asc"))
+			.andExpect(jsonPath("$.totalItems").value(3))
+			.andExpect(jsonPath("$.items[0].size").value("500 g"))
+			.andExpect(jsonPath("$.items[1].size").value("1 kg"))
+			.andExpect(jsonPath("$.items[2].size").value("2,5 kg"));
+	}
+
+	@Test
+	void createWithoutFormIsAFieldError() throws Exception {
+		mvc.perform(post("/api/products").with(admin())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("""
+							{ "name": "Kreatin Mango", "price": 24.9, "stock": 10, "categoryId": %d }
+							""".formatted(categoryId("Kreatin"))))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[*].field", hasItem("form")));
+	}
+
+	@Test
+	void tooLongSizeIsAFieldError() throws Exception {
+		mvc.perform(patch("/api/products/" + createProduct()).with(admin())
+					.contentType(MediaType.APPLICATION_JSON)
+					.content("{ \"size\": \"%s\" }".formatted("x".repeat(31))))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.errors[0].field").value("size"));
 	}
 
 	// ---- 0002 Details und Bestand ----
@@ -183,7 +246,9 @@ class ProductApiTests {
 			.andExpect(header().exists("Location"))
 			.andExpect(jsonPath("$.name").value("Kreatin Mango"))
 			.andExpect(jsonPath("$.stockStatus").value("IN_STOCK"))
-			.andExpect(jsonPath("$.categoryName").value("Kreatin"));
+			.andExpect(jsonPath("$.categoryName").value("Kreatin"))
+			.andExpect(jsonPath("$.size").value("500 g"))
+			.andExpect(jsonPath("$.form").value("PULVER"));
 	}
 
 	@Test
@@ -193,11 +258,12 @@ class ProductApiTests {
 					.contentType(MediaType.APPLICATION_JSON)
 					.content("""
 							{ "name": "Kreatin Mango XL", "price": 29.9, "stock": 3,
-							  "categoryId": %d }
+							  "categoryId": %d, "form": "PULVER" }
 							""".formatted(categoryId("Protein"))))
 			.andExpect(status().isOk())
 			.andExpect(jsonPath("$.name").value("Kreatin Mango XL"))
 			.andExpect(jsonPath("$.description").doesNotExist())
+			.andExpect(jsonPath("$.size").doesNotExist())
 			.andExpect(jsonPath("$.stockStatus").value("LOW_STOCK"))
 			.andExpect(jsonPath("$.categoryName").value("Protein"));
 	}

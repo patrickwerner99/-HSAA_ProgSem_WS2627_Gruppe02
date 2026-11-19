@@ -32,3 +32,7 @@ Als **Kunde** möchte ich die Produkte nach Preis oder Neuheit sortieren und Aus
 ## Tests
 
 `ProductApiTests` (sortByPrice…, newestFirst, inStockOnlyHidesSoldOutProducts, unknownSortIsRejected), `product-list.spec.ts`.
+
+## Erweiterung
+
+Seit Sprint 3 zusätzlich Filter nach Produktart (`form`), siehe [0019](0019-produktart-filter.md).

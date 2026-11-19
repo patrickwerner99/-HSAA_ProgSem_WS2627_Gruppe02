@@ -24,8 +24,13 @@
         @if (line.product; as product) {
           <img [src]="product.imageUrl || placeholder" alt="" appFallbackImage loading="lazy" />
           <div class="what">
-            <a [routerLink]="['/produkte', product.id]" class="name">{{ product.name }}</a>
-            <span class="unit">{{ product.price | currency }} pro Stück</span>
+            <a [routerLink]="['/produkte', product.id]" class="name">{{ displayName(product) }}</a>
+            <span class="unit">
+              {{ product.price | currency }} pro Stück
+              @if (product.onSale) {
+                <span class="sale">(Sale, statt {{ product.regularPrice | currency }})</span>
+              }
+            </span>
             @if (line.problem; as problem) {
               <span class="problem">
                 {{ problem }}
@@ -73,10 +78,81 @@
     }
   </ul>
 
+  @if (loggedIn()) {
+    <section class="address" aria-labelledby="address-title">
+      <h2 id="address-title">Lieferadresse</h2>
+      @if (savedAddresses().length > 0) {
+        <mat-radio-group
+          class="choices"
+          aria-labelledby="address-title"
+          [value]="selectedAddress()"
+          (change)="selectedAddress.set($event.value)"
+        >
+          @for (saved of savedAddresses(); track saved.id) {
+            <mat-radio-button [value]="saved.id">
+              <strong>{{ saved.label || 'Adresse' }}</strong>
+              @if (saved.standard) {
+                (Standard)
+              }
+              – {{ addressLine(saved) }}
+            </mat-radio-button>
+          }
+          <mat-radio-button value="neu">Neue Adresse eingeben</mat-radio-button>
+        </mat-radio-group>
+        <p class="hint">Adressen verwaltest du unter <a routerLink="/konto">Mein Konto</a>.</p>
+      }
+      @if (selectedAddress() === 'neu') {
+        @if (addressFromLastOrder()) {
+          <p class="hint">Aus deiner letzten Bestellung übernommen. Du kannst sie hier ändern.</p>
+        }
+        <form class="address-form" (ngSubmit)="order()" novalidate>
+          <app-address-fields [form]="address" />
+          @if (savedAddresses().length < 10) {
+            <mat-checkbox [formControl]="saveNewAddress">In meinem Konto speichern</mat-checkbox>
+          }
+        </form>
+      }
+      <p class="hint">Wir liefern nur innerhalb Deutschlands.</p>
+    </section>
+  }
+
   <section class="summary">
+    <div class="discount">
+      @if (discount(); as applied) {
+        <p class="applied">
+          Rabattcode <strong>{{ applied.code }}</strong
+          >: −{{ applied.percent }} %
+          <button mat-button type="button" (click)="removeCode()">Entfernen</button>
+        </p>
+      } @else {
+        <form class="code-form" (ngSubmit)="applyCode()">
+          <label for="discount-code">Rabattcode</label>
+          <input
+            id="discount-code"
+            [formControl]="codeInput"
+            autocomplete="off"
+            placeholder="z. B. HYROX10"
+          />
+          <button mat-stroked-button type="submit" [disabled]="checkingCode()">Einlösen</button>
+        </form>
+      }
+      @if (codeError(); as message) {
+        <p class="code-error" role="alert">{{ message }}</p>
+      }
+    </div>
+    @if (discount()) {
+      <p class="sub">
+        <span>Zwischensumme</span>
+        <span>{{ total() | currency }}</span>
+      </p>
+      <p class="sub">
+        <span>Rabatt</span>
+        <span>−{{ discountAmount() | currency }}</span>
+      </p>
+    }
     <p class="sum">
       <span>Summe</span>
-      <strong>{{ total() | currency }}</strong>
+      <strong>{{ totalAfterDiscount() | currency }}</strong>
     </p>
     <p class="hint">Keine echte Zahlung – es ist ein Studienprojekt.</p>
     @if (hasProblems()) {

@@ -103,3 +103,49 @@ tfoot td {
 .danger {
   color: var(--stock-out);
 }
+
+.facts .address {
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.facts .muted {
+  font-weight: 400;
+  color: var(--shop-muted);
+}
+
+.returns {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.returns h2 {
+  margin: 0;
+}
+
+.return-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.return-items input {
+  width: 4rem;
+  margin-right: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  font: inherit;
+}
+
+.reason {
+  display: block;
+  max-width: 32rem;
+}
+
+.form-error {
+  color: var(--stock-out);
+  font-weight: 600;
+}

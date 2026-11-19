@@ -4,6 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,6 +12,7 @@ import de.hsaa.shop.category.Category;
 import de.hsaa.shop.category.CategoryRepository;
 import de.hsaa.shop.common.InvalidFieldException;
 import de.hsaa.shop.common.NotFoundException;
+import de.hsaa.shop.common.ShopTime;
 import de.hsaa.shop.common.PageResponse;
 
 /** Geschäftslogik für Produkte: Suche mit Nachladen, Anlegen, Ändern (ganz oder einzeln), Löschen. */
@@ -22,7 +24,7 @@ public class ProductService {
 	public static final int DEFAULT_PAGE_SIZE = 12;
 	static final int MAX_PAGE_SIZE = 50;
 
-	private final ProductRepository products;
+	private final ProductRepository products;  //products= das Repository für Produkte
 	private final CategoryRepository categories;
 
 	public ProductService(ProductRepository products, CategoryRepository categories) {
@@ -33,17 +35,19 @@ public class ProductService {
 	/**
 	 * Suchen, filtern und sortieren (docs/anforderungen/0001, 0012).
 	 *
+	 * @param form Produktart wie {@code RIEGEL} oder leer für alle (0019)
 	 * @param sort {@code name} (Standard), {@code price-asc}, {@code price-desc} oder {@code newest}
 	 */
 	@Transactional(readOnly = true)
-	public PageResponse<ProductResponse> search(String query, Long categoryId, boolean inStockOnly, String sort,
-			int page, int size) {
+	public PageResponse<ProductResponse> search(String query, Long categoryId, String form, boolean inStockOnly,
+			boolean saleOnly, String sort, int page, int size) {
 		String text = query == null ? "" : query.trim();
 		int safePage = Math.max(page, 0);
 		int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 		Pageable pageable = PageRequest.of(safePage, safeSize, toSort(sort));
 
-		Page<Product> result = products.search(text, categoryId, inStockOnly, pageable);
+		Page<Product> result = products.search(text, categoryId, ProductForm.fromParam(form), inStockOnly, saleOnly,
+				ShopTime.today(), pageable);
 		return PageResponse.of(result, ProductResponse::from);
 	}
 
@@ -52,12 +56,18 @@ public class ProductService {
 			return Sort.by("name").ascending().and(Sort.by("id"));
 		}
 		return switch (sort) {
-			case "price-asc" -> Sort.by("price").ascending().and(Sort.by("name")).and(Sort.by("id"));
-			case "price-desc" -> Sort.by("price").descending().and(Sort.by("name")).and(Sort.by("id"));
+			// Sortiert nach dem Preis, den Kunden heute zahlen (im Sale der Sale-Preis, G1).
+			case "price-asc" -> JpaSort.unsafe(Sort.Direction.ASC, ProductRepository.CURRENT_PRICE)
+					.and(Sort.by("name")).and(Sort.by("id"));
+			case "price-desc" -> JpaSort.unsafe(Sort.Direction.DESC, ProductRepository.CURRENT_PRICE)
+					.and(Sort.by("name")).and(Sort.by("id"));
+			// Größte Ersparnis zuerst, für den Sale-Bereich.
+			case "saving" -> JpaSort.unsafe(Sort.Direction.DESC, "(p.price - " + ProductRepository.CURRENT_PRICE + ")")
+					.and(Sort.by("name")).and(Sort.by("id"));
 			// Neuere Produkte haben eine höhere ID.
 			case "newest" -> Sort.by("id").descending();
 			default -> throw new InvalidFieldException("sort",
-					"Unbekannte Sortierung. Erlaubt: name, price-asc, price-desc, newest.");
+					"Unbekannte Sortierung. Erlaubt: name, price-asc, price-desc, newest, saving.");
 		};
 	}
 
@@ -83,7 +93,10 @@ public class ProductService {
 				request.price(),
 				request.stock().intValueExact(),
 				emptyToNull(request.imageUrl()),
-				loadCategory(request.categoryId()));
+				loadCategory(request.categoryId()),
+				emptyToNull(request.size()),
+				request.form());
+		product.setEan(emptyToNull(request.ean()));
 		return ProductResponse.from(products.save(product));
 	}
 
@@ -96,6 +109,9 @@ public class ProductService {
 		product.setStock(request.stock().intValueExact());
 		product.setImageUrl(emptyToNull(request.imageUrl()));
 		product.setCategory(loadCategory(request.categoryId()));
+		product.setSize(emptyToNull(request.size()));
+		product.setForm(request.form());
+		product.setEan(emptyToNull(request.ean()));
 		return ProductResponse.from(product);
 	}
 
@@ -120,6 +136,39 @@ public class ProductService {
 		if (patch.categoryId() != null) {
 			product.setCategory(loadCategory(patch.categoryId()));
 		}
+		if (patch.size() != null) {
+			product.setSize(emptyToNull(patch.size()));
+		}
+		if (patch.form() != null) {
+			product.setForm(patch.form());
+		}
+		if (patch.ean() != null) {
+			product.setEan(emptyToNull(patch.ean()));
+		}
+		return ProductResponse.from(product);
+	}
+
+	// ---- Sale (G1) ----
+
+	public ProductResponse startSale(Long id, SaleRequest request) {
+		Product product = load(id);
+		if (request.salePrice().compareTo(product.getPrice()) >= 0) {
+			throw new InvalidFieldException("salePrice",
+					"Der Sale-Preis muss unter dem normalen Preis (" + product.getPrice() + " €) liegen.");
+		}
+		if (request.until().isBefore(request.from())) {
+			throw new InvalidFieldException("until", "Das Ende darf nicht vor dem Beginn liegen.");
+		}
+		if (request.until().isBefore(ShopTime.today())) {
+			throw new InvalidFieldException("until", "Das Ende darf nicht in der Vergangenheit liegen.");
+		}
+		product.startSale(request.salePrice(), request.from(), request.until());
+		return ProductResponse.from(product);
+	}
+
+	public ProductResponse endSale(Long id) {
+		Product product = load(id);
+		product.endSale();
 		return ProductResponse.from(product);
 	}
 
@@ -127,8 +176,14 @@ public class ProductService {
 		products.delete(load(id));
 	}
 
+	/** Für die Nährwerte (H1): Barcode des Produkts, 404 wenn es das Produkt nicht gibt. */
+	@Transactional(readOnly = true)
+	public String eanOf(Long id) {
+		return load(id).getEan();
+	}
+
 	private Product load(Long id) {
-		return products.findById(id)
+		return products.findById(id) //"Repository, such mir das Produkte mit dieser ID"
 				.orElseThrow(() -> new NotFoundException("Dieses Produkt gibt es nicht (mehr)."));
 	}
 

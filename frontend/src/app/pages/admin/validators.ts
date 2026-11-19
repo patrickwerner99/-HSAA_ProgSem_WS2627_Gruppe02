@@ -56,6 +56,13 @@ const MESSAGES: Record<string, Record<string, string>> = {
     maxlength: 'Der Name muss 2 bis 50 Zeichen lang sein.',
   },
   categoryId: { required: 'Bitte eine Kategorie auswählen.' },
+  form: { required: 'Bitte eine Produktart auswählen (Pulver, Riegel, Getränk …).' },
+  size: {
+    maxlength: 'Die Größe darf höchstens 30 Zeichen lang sein (z. B. 1 kg, 330 ml, 12 × 45 g).',
+  },
+  ean: {
+    pattern: 'Der Barcode (EAN) besteht aus 8 oder 12 bis 14 Ziffern.',
+  },
   price: {
     required: 'Bitte einen Preis eingeben.',
     priceFormat: 'Bitte einen Preis wie 34,90 eingeben.',

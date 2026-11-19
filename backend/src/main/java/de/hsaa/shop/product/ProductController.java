@@ -21,13 +21,15 @@ import jakarta.validation.Valid;
  * REST-Endpunkte für Produkte unter /api/products.
  *
  * <pre>
- * GET    /api/products?q=whey&amp;categoryId=2&amp;inStock=true&amp;sort=price-asc&amp;page=0&amp;size=12
+ * GET    /api/products?q=whey&amp;categoryId=2&amp;form=RIEGEL&amp;inStock=true&amp;sale=true&amp;sort=price-asc&amp;page=0&amp;size=12
  *                                                    Liste (Suche, Filter, Sortierung, endloses Scrollen)
  * GET    /api/products/{id}                                 Details
  * POST   /api/products                                      anlegen
  * PUT    /api/products/{id}                                 ganzes Produkt ändern
  * PATCH  /api/products/{id}                                 einzelne Felder ändern
  * DELETE /api/products/{id}                                 löschen
+ * PUT    /api/products/{id}/sale                            in den Sale stellen (G1)
+ * DELETE /api/products/{id}/sale                            Sale beenden
  * Schreibende Aufrufe nur für ADMIN (SecurityConfig).
  * </pre>
  */
@@ -45,11 +47,13 @@ public class ProductController {
 	public PageResponse<ProductResponse> list(
 			@RequestParam(name = "q", required = false) String query,
 			@RequestParam(required = false) Long categoryId,
+			@RequestParam(required = false) String form,
 			@RequestParam(defaultValue = "false") boolean inStock,
+			@RequestParam(defaultValue = "false") boolean sale,
 			@RequestParam(defaultValue = "name") String sort,
 			@RequestParam(defaultValue = "0") int page,
 			@RequestParam(defaultValue = "" + ProductService.DEFAULT_PAGE_SIZE) int size) {
-		return service.search(query, categoryId, inStock, sort, page, size);
+		return service.search(query, categoryId, form, inStock, sale, sort, page, size);
 	}
 
 	@GetMapping("/{id}")
@@ -71,6 +75,16 @@ public class ProductController {
 	@PatchMapping("/{id}")
 	public ProductResponse patch(@PathVariable Long id, @Valid @RequestBody ProductPatch patch) {
 		return service.patch(id, patch);
+	}
+
+	@PutMapping("/{id}/sale")
+	public ProductResponse startSale(@PathVariable Long id, @Valid @RequestBody SaleRequest request) {
+		return service.startSale(id, request);
+	}
+
+	@DeleteMapping("/{id}/sale")
+	public ProductResponse endSale(@PathVariable Long id) {
+		return service.endSale(id);
 	}
 
 	@DeleteMapping("/{id}")

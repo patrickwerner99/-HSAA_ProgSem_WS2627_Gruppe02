@@ -1,3 +1,4 @@
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { Component, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
@@ -16,7 +17,7 @@ import { ProductFormData, ProductFormDialog } from './product-form-dialog';
  */
 @Component({
   selector: 'app-products-tab',
-  imports: [MatButtonModule, FallbackImageDirective],
+  imports: [CurrencyPipe, DatePipe, MatButtonModule, FallbackImageDirective],
   templateUrl: './products-tab.html',
   styleUrl: './admin-table.css',
 })
@@ -51,15 +52,15 @@ export class ProductsTab {
       this.notify.error(
         'Der Preis muss größer als 0 sein und darf höchstens zwei Nachkommastellen haben.',
       );
-      field.value = priceForInput(product.price);
+      field.value = priceForInput(product.regularPrice);
       return;
     }
-    if (price === product.price) {
+    if (price === product.regularPrice) {
       field.value = priceForInput(price);
       return;
     }
     this.saveField(product, { price }, `Preis von „${product.name}“ gespeichert`, () => {
-      field.value = priceForInput(product.price);
+      field.value = priceForInput(product.regularPrice);
     });
   }
 
